@@ -1,0 +1,8 @@
+.vs/
+obj/
+bin/
+
+# Tobii dont sue me pls.
+**/lib/tobii*.dll
+
+*.user

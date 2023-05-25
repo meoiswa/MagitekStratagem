@@ -1,0 +1,11 @@
+{
+  "Author": "Meoiswa",
+  "Name": "Tobii",
+  "Punchline": "Look at me!",
+  "Description": "Tobii integration for FFXIV",
+  "InternalName": "Tobii",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "UI"
+  ]
+}
