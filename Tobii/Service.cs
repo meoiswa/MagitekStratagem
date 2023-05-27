@@ -19,6 +19,7 @@ namespace TobiiPlugin
     [PluginService] public static ClientState ClientState { get; private set; }
     [PluginService] public static GameGui GameGui { get; private set; }
     [PluginService] public static TargetManager TargetManager { get; private set; }
+    [PluginService] public static SigScanner SigScanner { get; private set; }
 #pragma warning restore CS8618
   }
 }

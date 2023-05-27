@@ -89,10 +89,30 @@ namespace TobiiPlugin
 
     public override void Draw()
     {
+      if (plugin.ErrorHooking)
+      {
+        ImGui.Text("Error hooking functions.");
+        return;
+      }
+
       DrawSectionEnabled();
 
-      ImGui.Text("Tobii Eye Tracker");
+      var highlightColor = plugin.Configuration.HighlightColor;
+      if (ImGui.Combo("Highlight Mode", ref highlightColor, "None\0Red\0Greem\0Blue\0Yellow\0Orange\0Magenta\0Black\0"))
+      {
+        if (highlightColor < 0)
+        {
+          highlightColor = 0;
+        }
+        if (highlightColor > 7)
+        {
+          highlightColor = 7;
+        }
+        plugin.Configuration.HighlightColor = highlightColor;
+        plugin.Configuration.Save();
+      }
 
+      ImGui.Text("Tobii Eye Tracker");
 
       if (plugin.Configuration.Enabled)
       {
@@ -107,13 +127,7 @@ namespace TobiiPlugin
         else
         {
           ImGui.Separator();
-          ImGui.Text($"Closest Target: {plugin.ClosestMatch?.Name}");
-
-          ImGui.Text($"Target: {Service.TargetManager.Target?.Name}");
-          ImGui.Text($"Mouseover: {Service.TargetManager.MouseOverTarget?.Name}");
-          ImGui.Text($"Focus: {Service.TargetManager.FocusTarget?.Name}");
-          ImGui.Text($"Previous: {Service.TargetManager.PreviousTarget?.Name}");
-          ImGui.Text($"Soft: {Service.TargetManager.SoftTarget?.Name}");
+          ImGui.Text($"Closest Target: {plugin.ClosestMatch?.Name} - {plugin.ClosestMatch?.Address.ToString("X")}");
 
           ImGui.Separator();
 
@@ -121,28 +135,6 @@ namespace TobiiPlugin
           ImGui.Text($"LastTimestamp: {plugin.TobiiService.LastGazeTimeStamp}");
           ImGui.Text($"LastX: {plugin.TobiiService.LastGazeX}");
           ImGui.Text($"LastY: {plugin.TobiiService.LastGazeY}");
-
-          ImGui.Separator();
-
-          ImGui.Text("Head:");
-          ImGui.Text($"LastTimestamp: {plugin.TobiiService.LastHeadTimeStamp}");
-          ImGui.Text($"LastHeadPositionX: {plugin.TobiiService.LastHeadPositionX}");
-          ImGui.Text($"LastHeadPositionY: {plugin.TobiiService.LastHeadPositionY}");
-          ImGui.Text($"LastHeadPositionZ: {plugin.TobiiService.LastHeadPositionZ}");
-          ImGui.Text($"LastHeadRotationPitch: {plugin.TobiiService.LastHeadRotationPitch}");
-          ImGui.Text($"LastHeadRotationYaw: {plugin.TobiiService.LastHeadRotationYaw}");
-          ImGui.Text($"LastHeadRotationRoll: {plugin.TobiiService.LastHeadRotationRoll}");
-
-          ImGui.Separator();
-
-          var ext = plugin.TobiiService.ExtendedTransform;
-          ImGui.Text("Extended Transform:");
-          ImGui.Text($"PositionX: {ext.Position.X}");
-          ImGui.Text($"PositionY: {ext.Position.Y}");
-          ImGui.Text($"PositionZ: {ext.Position.Z}");
-          ImGui.Text($"RotationPitch: {ext.Rotation.PitchDegrees}");
-          ImGui.Text($"RotationYaw: {ext.Rotation.YawDegrees}");
-          ImGui.Text($"RotationRoll: {ext.Rotation.RollDegrees}");
 
           DrawCrosshair(plugin.TobiiService.LastGazeX, plugin.TobiiService.LastGazeY);
 

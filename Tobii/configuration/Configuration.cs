@@ -12,6 +12,8 @@ namespace TobiiPlugin
     public bool Enabled { get; set; } = true;
 
     public bool IsVisible { get; set; } = false;
+    
+    public int HighlightColor { get; set; } = 2;
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]
