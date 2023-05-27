@@ -13,8 +13,12 @@ namespace TobiiPlugin
 
     public bool IsVisible { get; set; } = false;
 
+    public bool AutoStartTracking { get; set; } = true;
+
     public int HighlightColor { get; set; } = 2;
     public int ProximityColor { get; set; } = 5;
+
+    public bool OverlayEnabled { get; set; } = false;
 
     public bool UseRaycast { get; set; } = true;
 
@@ -23,6 +27,9 @@ namespace TobiiPlugin
 
     public float HeatIncrement { get; set; } = 1.0f;
     public float HeatDecay { get; set; } = 0.5f;
+    
+    public bool InitialTabTargetEnabled { get; set; } = true;
+    public bool TabTargetEnabled { get; set; } = false;
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]

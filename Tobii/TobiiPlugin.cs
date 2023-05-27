@@ -27,7 +27,9 @@ namespace TobiiPlugin
     public string Name => "Tobii";
 
     private const string commandName = "/tobii";
+    private const string overlayCommandName = "/tobiioverlay";
     private GameObject? lastHighlight = null;
+    private bool autoStarted;
 
     public DalamudPluginInterface PluginInterface { get; init; }
     public CommandManager CommandManager { get; init; }
@@ -38,6 +40,7 @@ namespace TobiiPlugin
     public ObjectTable ObjectTable { get; init; }
     public Random Random { get; }
     public TobiiUI Window { get; init; }
+    public TobiiOverlay Overlay { get; init; }
     public TobiiService TobiiService { get; init; }
     public GameObject? ClosestMatch { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
@@ -58,7 +61,7 @@ namespace TobiiPlugin
         IntPtr a5)
     {
       var originalResult = selectTabTargetIgnoreDepthHook.Original(targetSystem, camera, gameObjects, inverse, a5);
-      if (Configuration.Enabled && ClosestMatch != null)
+      if (Configuration.Enabled && ClosestMatch != null && Configuration.TabTargetEnabled)
       {
         PluginLog.Log($"SelectTabTargetIgnoreDepthDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
@@ -70,7 +73,7 @@ namespace TobiiPlugin
         IntPtr a5)
     {
       var originalResult = selectTabTargetConeHook.Original(targetSystem, camera, gameObjects, inverse, a5);
-      if (Configuration.Enabled && ClosestMatch != null)
+      if (Configuration.Enabled && ClosestMatch != null && Configuration.TabTargetEnabled)
       {
         PluginLog.Log($"SelectTabTargetConeDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
@@ -81,7 +84,11 @@ namespace TobiiPlugin
     private IntPtr SelectInitialTabTargetDetour(IntPtr targetSystem, IntPtr gameObjects, IntPtr camera, IntPtr a4)
     {
       var originalResult = selectInitialTabTargetHook.Original(targetSystem, gameObjects, camera, a4);
-      PluginLog.Log($"SelectInitialTabTargetDetour - {originalResult:X}");
+      if (Configuration.Enabled && ClosestMatch != null && Configuration.InitialTabTargetEnabled)
+      {
+        PluginLog.Log($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
+        return ClosestMatch.Address;
+      }
       return originalResult;
     }
 
@@ -110,11 +117,21 @@ namespace TobiiPlugin
         IsOpen = Configuration.IsVisible
       };
 
+      Overlay = new TobiiOverlay(this)
+      {
+        IsOpen = true
+      };
+
       WindowSystem.AddWindow(Window);
+      WindowSystem.AddWindow(Overlay);
 
       CommandManager.AddHandler(commandName, new CommandInfo(OnCommand)
       {
         HelpMessage = "opens the configuration window"
+      });
+      CommandManager.AddHandler(overlayCommandName, new CommandInfo(OnCommand)
+      {
+        HelpMessage = "togggles the overlay"
       });
 
       TobiiService = new TobiiService();
@@ -190,6 +207,7 @@ namespace TobiiPlugin
       WindowSystem.RemoveAllWindows();
 
       CommandManager.RemoveHandler(commandName);
+      CommandManager.RemoveHandler(overlayCommandName);
     }
 
     public void SaveConfiguration()
@@ -208,7 +226,15 @@ namespace TobiiPlugin
 
     private void OnCommand(string command, string args)
     {
-      SetVisible(!Configuration.IsVisible);
+      if (command == commandName)
+      {
+        SetVisible(!Configuration.IsVisible);
+      }
+      else if (command == overlayCommandName)
+      {
+        Configuration.OverlayEnabled = !Configuration.OverlayEnabled;
+        Configuration.Save();
+      }
     }
 
     private void DrawUI()
@@ -273,8 +299,19 @@ namespace TobiiPlugin
       var player = Service.ClientState.LocalPlayer;
       var position = player?.Position ?? new Vector3();
 
-      if (Configuration.Enabled && Condition.Any() && player != null && TobiiService.IsTracking)
+      if (Configuration.Enabled && Condition.Any() && player != null)
       {
+        if (!TobiiService.IsTracking)
+        {
+          if (Configuration.AutoStartTracking && !autoStarted)
+          {
+            TobiiService.StartTrackingWindow(PluginInterface.UiBuilder.WindowHandlePtr);
+            autoStarted = true;
+            PluginLog.LogDebug("Tobii Eye Tracking auto-start.");
+          }
+          return;
+        }
+
         TobiiService.Update();
 
         unsafe
