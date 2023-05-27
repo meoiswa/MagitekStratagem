@@ -12,8 +12,17 @@ namespace TobiiPlugin
     public bool Enabled { get; set; } = true;
 
     public bool IsVisible { get; set; } = false;
-    
+
     public int HighlightColor { get; set; } = 2;
+    public int ProximityColor { get; set; } = 5;
+
+    public bool UseRaycast { get; set; } = true;
+
+    public int GazeCircleSegments { get; set; } = 24;
+    public int GazeCircleRadius { get; set; } = 100;
+
+    public float HeatIncrement { get; set; } = 1.0f;
+    public float HeatDecay { get; set; } = 0.5f;
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]

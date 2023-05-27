@@ -16,6 +16,9 @@ using System.Numerics;
 using ImGuiNET;
 using System.Runtime.InteropServices;
 using Dalamud.Hooking;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace TobiiPlugin
 {
@@ -33,10 +36,11 @@ namespace TobiiPlugin
     public WindowSystem WindowSystem { get; init; }
     public Condition Condition { get; init; }
     public ObjectTable ObjectTable { get; init; }
-
+    public Random Random { get; }
     public TobiiUI Window { get; init; }
     public TobiiService TobiiService { get; init; }
     public GameObject? ClosestMatch { get; private set; }
+    public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
 
     public delegate void HighlightGameObjectWithColorDelegate(IntPtr gameObject, byte color);
@@ -46,6 +50,8 @@ namespace TobiiPlugin
     private readonly Hook<SelectTabTargetDelegate>? selectTabTargetIgnoreDepthHook = null;
     private readonly Hook<SelectTabTargetDelegate>? selectTabTargetConeHook = null;
     private readonly Hook<SelectInitialTabTargetDelegate>? selectInitialTabTargetHook = null;
+
+    public readonly Dictionary<IntPtr, float> gameObjectHeatMap = new();
 
     private IntPtr SelectTabTargetIgnoreDepthDetour(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects,
         bool inverse,
@@ -96,6 +102,8 @@ namespace TobiiPlugin
 
       Condition = Service.Condition;
       ObjectTable = Service.ObjectTable;
+
+      Random = new Random();
 
       Window = new TobiiUI(this)
       {
@@ -213,6 +221,47 @@ namespace TobiiPlugin
       SetVisible(!Configuration.IsVisible);
     }
 
+    private unsafe GameObjectStruct* GetMouseOverObject(int x, int y)
+    {
+      var ObjectFilterArray1Ptr = (GameObjectArray*)((IntPtr)TargetSystem.Instance() + 0x1a98);
+      var ObjectFilterArray1 = *ObjectFilterArray1Ptr;
+      var camera = Control.Instance()->CameraManager.Camera;
+      var localPlayer = Control.Instance()->LocalPlayer;
+      if (camera == null || localPlayer == null || ObjectFilterArray1.Length <= 0)
+        return null;
+      return TargetSystem.Instance()->GetMouseOverObject(x, y, ObjectFilterArray1Ptr, camera);
+    }
+
+    private IntPtr? FindMaxHeat()
+    {
+      if (gameObjectHeatMap.Keys.Count > 1)
+      {
+        return gameObjectHeatMap.Aggregate((x, y) => x.Value > y.Value ? x : y).Key;
+      }
+      else if (gameObjectHeatMap.Keys.Count == 1)
+      {
+        return gameObjectHeatMap.Keys.First();
+      }
+      else
+      {
+        return null;
+      }
+    }
+
+    //Exponentially decay heat
+    private void DecayHeat()
+    {
+      var keys = gameObjectHeatMap.Keys.ToList();
+      foreach (var key in keys)
+      {
+        gameObjectHeatMap[key] = gameObjectHeatMap[key] * Configuration.HeatDecay;
+        if (gameObjectHeatMap[key] < 0.01f)
+        {
+          gameObjectHeatMap.Remove(key);
+        }
+      }
+    }
+
     public void OnUpdate(Framework framework)
     {
       if (selectTabTargetConeHook == null || selectTabTargetIgnoreDepthHook == null || selectInitialTabTargetHook == null || highlightGameObjectWithColor == null)
@@ -260,30 +309,75 @@ namespace TobiiPlugin
                 {
                   ClosestMatch = actor;
                   closestDistance = distance;
+                  IsRaycasted = false;
+                }
+              }
+            }
+          }
+
+          if (Configuration.UseRaycast)
+          {
+            for (var i = 0; i < Configuration.GazeCircleSegments + 1; i++)
+            {
+              int rayPosX, rayPosY;
+              if (i == Configuration.GazeCircleSegments)
+              {
+                // Casta  ray exactly at the center of the gaze point
+                rayPosX = (int)gazeScreenPos.X;
+                rayPosY = (int)gazeScreenPos.Y;
+              }
+              else
+              {
+                // Cast a ray in a circle around the gaze point, with a randomized offset
+                var randomFloat = (float)Random.NextDouble();
+                rayPosX = (int)(gazeScreenPos.X + (randomFloat * Configuration.GazeCircleRadius * Math.Cos(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
+                rayPosY = (int)(gazeScreenPos.Y + (randomFloat * Configuration.GazeCircleRadius * Math.Sin(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
+              }
+              var rayHit = GetMouseOverObject(rayPosX, rayPosY);
+              if (rayHit != null)
+              {
+                if (gameObjectHeatMap.ContainsKey((IntPtr)rayHit))
+                {
+                  gameObjectHeatMap[(IntPtr)rayHit] += Configuration.HeatIncrement;
+                }
+                else
+                {
+                  gameObjectHeatMap[(IntPtr)rayHit] = Configuration.HeatIncrement;
                 }
               }
             }
 
-            if (ClosestMatch != null)
+            var ptr = FindMaxHeat();
+            if (ptr != null)
             {
-              if (lastHighlight != null && lastHighlight.Address != ClosestMatch.Address)
+              var raycasted = ObjectTable.FirstOrDefault(x => (GameObjectStruct*)x.Address == (GameObjectStruct*)ptr);
+              if (raycasted != null)
               {
-                highlightGameObjectWithColor(lastHighlight.Address, 0);
-                lastHighlight = null;
+                ClosestMatch = raycasted;
+                IsRaycasted = true;
               }
-
-              highlightGameObjectWithColor(ClosestMatch.Address, (byte)Configuration.HighlightColor);
-              lastHighlight = ClosestMatch;
-
-
             }
-            if (ClosestMatch == null)
+
+            DecayHeat();
+          }
+
+          if (ClosestMatch != null)
+          {
+            if (lastHighlight != null && lastHighlight.Address != ClosestMatch.Address)
             {
-              if (lastHighlight != null)
-              {
-                highlightGameObjectWithColor(lastHighlight.Address, 0);
-                lastHighlight = null;
-              }
+              highlightGameObjectWithColor(lastHighlight.Address, 0);
+              lastHighlight = null;
+            }
+
+            highlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
+            lastHighlight = ClosestMatch;
+          }
+          if (ClosestMatch == null)
+          {
+            if (lastHighlight != null)
+            {
+              highlightGameObjectWithColor(lastHighlight.Address, 0);
+              lastHighlight = null;
             }
           }
         }

@@ -62,6 +62,7 @@ namespace TobiiPlugin
       var size = ImGui.GetIO().DisplaySize;
       var xp = x * (size.X / 2) + (size.X / 2);
       var yp = -y * (size.Y / 2) + (size.Y / 2);
+      var pixelCoord = new Vector2(xp, yp);
 
       var white = ImGui.GetColorU32(new Vector4(1, 1, 1, 1));
       var black = ImGui.GetColorU32(new Vector4(0, 0, 0, 1));
@@ -80,9 +81,9 @@ namespace TobiiPlugin
 
       var dl = ImGui.GetWindowDrawList();
 
-      dl.AddCircle(new Vector2(xp, yp), 100 + blackThick, black, 24, blackThick);
-      dl.AddCircle(new Vector2(xp, yp), 100 - blackThick, black, 24, blackThick);
-      dl.AddCircle(new Vector2(xp, yp), 100, white, 24, whiteThick);
+      dl.AddCircle(pixelCoord, plugin.Configuration.GazeCircleRadius + blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
+      dl.AddCircle(pixelCoord, plugin.Configuration.GazeCircleRadius - blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
+      dl.AddCircle(pixelCoord, plugin.Configuration.GazeCircleRadius, white, plugin.Configuration.GazeCircleSegments, whiteThick);
 
       ImGui.End();
     }
@@ -97,8 +98,15 @@ namespace TobiiPlugin
 
       DrawSectionEnabled();
 
+      var useRaycast = plugin.Configuration.UseRaycast;
+      if (ImGui.Checkbox("Use Raycast", ref useRaycast))
+      {
+        plugin.Configuration.UseRaycast = useRaycast;
+        plugin.Configuration.Save();
+      }
+
       var highlightColor = plugin.Configuration.HighlightColor;
-      if (ImGui.Combo("Highlight Mode", ref highlightColor, "None\0Red\0Greem\0Blue\0Yellow\0Orange\0Magenta\0Black\0"))
+      if (ImGui.Combo("Gaze Color", ref highlightColor, "None\0Red\0Green\0Blue\0Yellow\0Orange\0Magenta\0Black\0"))
       {
         if (highlightColor < 0)
         {
@@ -109,6 +117,49 @@ namespace TobiiPlugin
           highlightColor = 7;
         }
         plugin.Configuration.HighlightColor = highlightColor;
+        plugin.Configuration.Save();
+      }
+      
+      var proximityColor = plugin.Configuration.ProximityColor;
+      if (ImGui.Combo("Proximity Color", ref proximityColor, "None\0Red\0Green\0Blue\0Yellow\0Orange\0Magenta\0Black\0"))
+      {
+        if (proximityColor < 0)
+        {
+          proximityColor = 0;
+        }
+        if (proximityColor > 7)
+        {
+          proximityColor = 7;
+        }
+        plugin.Configuration.ProximityColor = proximityColor;
+        plugin.Configuration.Save();
+      }
+
+      var gazeCircleRadius = plugin.Configuration.GazeCircleRadius;
+      if (ImGui.SliderInt("Gaze Circle Radius", ref gazeCircleRadius, 0, 200))
+      {
+        plugin.Configuration.GazeCircleRadius = gazeCircleRadius;
+        plugin.Configuration.Save();
+      }
+
+      var gazeCircleSegments = plugin.Configuration.GazeCircleSegments;
+      if (ImGui.SliderInt("Gaze Circle Segments", ref gazeCircleSegments, 3, 100))
+      {
+        plugin.Configuration.GazeCircleSegments = gazeCircleSegments;
+        plugin.Configuration.Save();
+      }
+
+      var heatIncrement = plugin.Configuration.HeatIncrement;
+      if (ImGui.SliderFloat("Heat Increment", ref heatIncrement, 0.01f, 2f))
+      {
+        plugin.Configuration.HeatIncrement = heatIncrement;
+        plugin.Configuration.Save();
+      }
+
+      var heatDecay = plugin.Configuration.HeatDecay;
+      if (ImGui.SliderFloat("Heat Decay Factor", ref heatDecay, 0.01f, 1f))
+      {
+        plugin.Configuration.HeatDecay = heatDecay;
         plugin.Configuration.Save();
       }
 
@@ -135,6 +186,15 @@ namespace TobiiPlugin
           ImGui.Text($"LastTimestamp: {plugin.TobiiService.LastGazeTimeStamp}");
           ImGui.Text($"LastX: {plugin.TobiiService.LastGazeX}");
           ImGui.Text($"LastY: {plugin.TobiiService.LastGazeY}");
+
+          ImGui.Separator();
+
+          ImGui.Text($"Heatmap: {plugin.gameObjectHeatMap.Count}");
+          foreach (var gameObjectHeat in plugin.gameObjectHeatMap)
+          {
+            ImGui.Text($"{gameObjectHeat.Key} - {gameObjectHeat.Value}");
+          }
+
 
           DrawCrosshair(plugin.TobiiService.LastGazeX, plugin.TobiiService.LastGazeY);
 
