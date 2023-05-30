@@ -27,9 +27,12 @@ namespace TobiiPlugin
 
     public float HeatIncrement { get; set; } = 1.0f;
     public float HeatDecay { get; set; } = 0.5f;
-    
-    public bool InitialTabTargetEnabled { get; set; } = true;
-    public bool TabTargetEnabled { get; set; } = false;
+
+    public bool OverrideEnemyTarget { get; set; } = true;
+    public bool OverrideEnemyTargetAlways { get; set; } = false;
+    public bool OverrideSoftTarget { get; set; } = true;
+    public bool OverrideSoftTargetAlways { get; set; } = false;
+
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]

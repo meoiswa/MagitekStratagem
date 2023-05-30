@@ -75,7 +75,12 @@ namespace TobiiPlugin
         return;
       }
 
-      DrawBubble(plugin.TobiiService.LastGazeX, plugin.TobiiService.LastGazeY);
+      if (plugin.TrackerService == null)
+      {
+        return;
+      }
+
+      DrawBubble(plugin.TrackerService.LastGazeX, plugin.TrackerService.LastGazeY);
     }
   }
 }

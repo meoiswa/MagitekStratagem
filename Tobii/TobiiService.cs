@@ -7,7 +7,7 @@ using Tobii.GameIntegration.Net;
 
 namespace TobiiPlugin
 {
-  public sealed class TobiiService
+  public sealed class TobiiService : ITrackerService
   {
     public bool IsTracking { get; private set; }
     public long LastGazeTimeStamp { get; private set; }
@@ -88,11 +88,10 @@ namespace TobiiPlugin
       ExtendedTransform = TobiiGameIntegrationApi.GetExtendedViewTransformation();
     }
 
-    internal void Shutdown()
+    public void Shutdown()
     {
       StopTracking();
       TobiiGameIntegrationApi.Shutdown();
-
     }
   }
 }

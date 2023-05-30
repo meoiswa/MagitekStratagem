@@ -55,42 +55,21 @@ namespace TobiiPlugin
       }
     }
 
-    public void DrawCrosshair(float x, float y)
-    {
-      var size = ImGui.GetIO().DisplaySize;
-      var xp = x * (size.X / 2) + (size.X / 2);
-      var yp = -y * (size.Y / 2) + (size.Y / 2);
-      var pixelCoord = new Vector2(xp, yp);
-
-      var white = ImGui.GetColorU32(new Vector4(1, 1, 1, 1));
-      var black = ImGui.GetColorU32(new Vector4(0, 0, 0, 1));
-
-      const float whiteThick = 3f;
-      const float blackThick = 1.5f;
-
-      ImGui.SetNextWindowSize(size);
-      ImGui.SetNextWindowViewport(ImGui.GetMainViewport().ID);
-      ImGui.SetNextWindowPos(Vector2.Zero);
-      const ImGuiWindowFlags flags = ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar |
-                                     ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoDecoration |
-                                     ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoBackground |
-                                     ImGuiWindowFlags.NoInputs;
-      ImGui.Begin("Crosshair Window", flags);
-
-      var dl = ImGui.GetWindowDrawList();
-
-      dl.AddCircle(pixelCoord, plugin.Configuration.GazeCircleRadius + blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
-      dl.AddCircle(pixelCoord, plugin.Configuration.GazeCircleRadius - blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
-      dl.AddCircle(pixelCoord, plugin.Configuration.GazeCircleRadius, white, plugin.Configuration.GazeCircleSegments, whiteThick);
-
-      ImGui.End();
-    }
-
     public override void Draw()
     {
       if (plugin.ErrorHooking)
       {
         ImGui.Text("Error hooking functions.");
+        return;
+      }
+
+      if (plugin.TrackerService == null)
+      {
+        ImGui.Text("Tobii GameHub Not Found");
+        if (ImGui.Button("Load Fake Service"))
+        {
+          plugin.TrackerService = new FakeService();
+        }
         return;
       }
 
@@ -103,28 +82,65 @@ namespace TobiiPlugin
         ImGui.TextWrapped("These settings control when the Gaze Target overrides happen");
 
         ImGui.NewLine();
-        var initialTabTargetEnabled = plugin.Configuration.InitialTabTargetEnabled;
-        if (ImGui.Checkbox("Override Initial Enemy Tab Target", ref initialTabTargetEnabled))
+        var overrideEnemyTarget = plugin.Configuration.OverrideEnemyTarget;
+        if (ImGui.Checkbox("Override Enemy Tab Target", ref overrideEnemyTarget))
         {
-          plugin.Configuration.InitialTabTargetEnabled = initialTabTargetEnabled;
+          plugin.Configuration.OverrideEnemyTarget = overrideEnemyTarget;
           plugin.Configuration.Save();
         }
-        ImGui.TextWrapped("Selects your gaze target only when no target is selected.");
-        ImGui.TextWrapped("Only works with either 'Cycle through Enemies' keybind.");
+        ImGui.TextWrapped("Selects your Gaze Target as your Target when you press either one of the 'Cycle through Enemies' keybinds.");
+        var overrideEnemyTargetAlways = plugin.Configuration.OverrideEnemyTargetAlways;
+
+        if (overrideEnemyTarget)
+        {
+          if (!overrideEnemyTargetAlways)
+          {
+            ImGui.TextWrapped("Selects your gaze target only when no target is selected.");
+          }
+          else
+          {
+            ImGui.TextWrapped("Selects your gaze target every time you press the keybind.");
+          }
+        }
+        ImGui.Indent();
+        if (ImGui.Checkbox("Always override.", ref overrideEnemyTargetAlways))
+        {
+          plugin.Configuration.OverrideEnemyTargetAlways = overrideEnemyTargetAlways;
+          plugin.Configuration.Save();
+        }
+        ImGui.Unindent();
 
         ImGui.NewLine();
-        var tabTargetEnabled = plugin.Configuration.TabTargetEnabled;
-        if (ImGui.Checkbox("Override ALL tab targets", ref tabTargetEnabled))
+        var overrideSoftTarget = plugin.Configuration.OverrideSoftTarget;
+        if (ImGui.Checkbox("Override Soft Tab Target", ref overrideSoftTarget))
         {
-          plugin.Configuration.TabTargetEnabled = tabTargetEnabled;
+          plugin.Configuration.OverrideSoftTarget = overrideSoftTarget;
           plugin.Configuration.Save();
         }
-        ImGui.TextWrapped("Selects your gaze target every time you tab target");
-        ImGui.TextWrapped("Fully overrides both 'Cycle through Enemies' and 'Target Cursor Left/Right' keybinds.");
+        ImGui.TextWrapped("Selects your Gaze Target as your Target Cursor when you press either one of the 'Target Cursor Left/Right' keybinds.");
+        var overrideSoftTargetAlways = plugin.Configuration.OverrideSoftTargetAlways;
+
+        if (overrideSoftTarget)
+        {
+          if (!overrideSoftTargetAlways)
+          {
+            ImGui.TextWrapped("Selects your gaze target only when no soft target is present.");
+          }
+          else
+          {
+            ImGui.TextWrapped("Selects your gaze target every time you press the keybind.");
+          }
+        }
+        ImGui.Indent();
+        if (ImGui.Checkbox("Always override.##soft", ref overrideSoftTargetAlways))
+        {
+          plugin.Configuration.OverrideSoftTargetAlways = overrideSoftTargetAlways;
+          plugin.Configuration.Save();
+        }
+        ImGui.Unindent();
 
         ImGui.Unindent();
       }
-
 
       if (ImGui.CollapsingHeader("Appareance Settings"))
       {
@@ -273,18 +289,18 @@ namespace TobiiPlugin
 
       if (plugin.Configuration.Enabled)
       {
-        if (!plugin.TobiiService.IsTracking)
+        if (!plugin.TrackerService.IsTracking)
         {
           if (ImGui.Button("Start Tracking"))
           {
-            plugin.TobiiService.StartTrackingWindow(plugin.PluginInterface.UiBuilder.WindowHandlePtr);
+            plugin.TrackerService.StartTrackingWindow(plugin.PluginInterface.UiBuilder.WindowHandlePtr);
           }
         }
         else
         {
           if (ImGui.Button("Stop Tracking"))
           {
-            plugin.TobiiService.StopTracking();
+            plugin.TrackerService.StopTracking();
           }
         }
       }
@@ -307,12 +323,18 @@ namespace TobiiPlugin
         ImGui.Indent();
         ImGui.Text($"Closest Target: {plugin.ClosestMatch?.Name} - {plugin.ClosestMatch?.Address.ToString("X")}");
 
+        var softTarget = Service.TargetManager.SoftTarget;
+        if (softTarget != null)
+        {
+          ImGui.Text($"Soft Target: {softTarget.Name} - {softTarget.Address:X}");
+        }
+
         ImGui.Separator();
 
         ImGui.Text("Gaze:");
-        ImGui.Text($"LastTimestamp: {plugin.TobiiService.LastGazeTimeStamp}");
-        ImGui.Text($"LastX: {plugin.TobiiService.LastGazeX}");
-        ImGui.Text($"LastY: {plugin.TobiiService.LastGazeY}");
+        ImGui.Text($"LastTimestamp: {plugin.TrackerService.LastGazeTimeStamp}");
+        ImGui.Text($"LastX: {plugin.TrackerService.LastGazeX}");
+        ImGui.Text($"LastY: {plugin.TrackerService.LastGazeY}");
 
         ImGui.Separator();
 

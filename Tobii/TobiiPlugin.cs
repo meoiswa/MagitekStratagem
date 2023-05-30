@@ -12,6 +12,8 @@ using Dalamud.Plugin;
 using Newtonsoft.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using GameObjectStruct = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
+using TargetSystemStruct = FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem;
+using FrameworkStruct = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework;
 using System.Numerics;
 using ImGuiNET;
 using System.Runtime.InteropServices;
@@ -19,6 +21,7 @@ using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using System.Linq;
 using System.Collections.Generic;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 
 namespace TobiiPlugin
 {
@@ -41,7 +44,7 @@ namespace TobiiPlugin
     public Random Random { get; }
     public TobiiUI Window { get; init; }
     public TobiiOverlay Overlay { get; init; }
-    public TobiiService TobiiService { get; init; }
+    public ITrackerService? TrackerService { get; set; }
     public GameObject? ClosestMatch { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
@@ -56,14 +59,60 @@ namespace TobiiPlugin
 
     public readonly Dictionary<IntPtr, float> gameObjectHeatMap = new();
 
-    private IntPtr SelectTabTargetIgnoreDepthDetour(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects,
+    private unsafe bool IsCircleTargetKeyboardInput()
+    {
+      var inputData = *(UIInputData*)FrameworkStruct.Instance()->UIModule->GetUIInputData();
+      // TODO: Find out if we are pressing the cursor left/right keybind.
+      return false;
+    }
+
+    private unsafe bool IsCircleTargetGamepadInput()
+    {
+      var inputData = *(UIInputData*)FrameworkStruct.Instance()->UIModule->GetUIInputData();
+      return (inputData.GamepadButtons & GamepadButtonsFlags.DPadRight) == GamepadButtonsFlags.DPadRight
+                || (inputData.GamepadButtons & GamepadButtonsFlags.DPadLeft) == GamepadButtonsFlags.DPadLeft;
+    }
+
+    private bool NeedsOverwrite()
+    {
+      bool isEnemyTarget;
+      if (IsCircleTargetGamepadInput() || IsCircleTargetKeyboardInput())
+      {
+        isEnemyTarget = false;
+      }
+      else
+      {
+        isEnemyTarget = true;
+      }
+
+      var overwrite = false;
+      if (Configuration.OverrideEnemyTarget && isEnemyTarget)
+      {
+        if (Configuration.OverrideEnemyTargetAlways || Service.TargetManager.Target == null)
+        {
+          overwrite = true;
+        }
+      }
+      else if (Configuration.OverrideSoftTarget && !isEnemyTarget)
+      {
+        if (Configuration.OverrideSoftTargetAlways || Service.TargetManager.SoftTarget == null)
+        {
+          overwrite = true;
+        }
+      }
+      return overwrite;
+    }
+
+    private unsafe IntPtr SelectTabTargetIgnoreDepthDetour(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects,
         bool inverse,
         IntPtr a5)
     {
-      var originalResult = selectTabTargetIgnoreDepthHook.Original(targetSystem, camera, gameObjects, inverse, a5);
-      if (Configuration.Enabled && ClosestMatch != null && Configuration.TabTargetEnabled)
+      PluginLog.LogVerbose($"SelectTabTargetIgnoreDepthDetour - {targetSystem:X} {camera:X} {gameObjects:X} {inverse} {a5:X}");
+      var originalResult = selectTabTargetIgnoreDepthHook?.Original(targetSystem, camera, gameObjects, inverse, a5) ?? IntPtr.Zero;
+
+      if (originalResult != IntPtr.Zero && Configuration.Enabled && ClosestMatch != null && NeedsOverwrite())
       {
-        PluginLog.Log($"SelectTabTargetIgnoreDepthDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
+        PluginLog.LogVerbose($"SelectTabTargetIgnoreDepthDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
       }
       return originalResult;
@@ -72,10 +121,12 @@ namespace TobiiPlugin
     private IntPtr SelectTabTargetConeDetour(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects, bool inverse,
         IntPtr a5)
     {
-      var originalResult = selectTabTargetConeHook.Original(targetSystem, camera, gameObjects, inverse, a5);
-      if (Configuration.Enabled && ClosestMatch != null && Configuration.TabTargetEnabled)
+      PluginLog.LogVerbose($"SelectTabTargetConeDetour - {targetSystem:X} {camera:X} {gameObjects:X} {inverse} {a5:X}");
+      var originalResult = selectTabTargetConeHook?.Original(targetSystem, camera, gameObjects, inverse, a5) ?? IntPtr.Zero;
+
+      if (originalResult != IntPtr.Zero && Configuration.Enabled && ClosestMatch != null && NeedsOverwrite())
       {
-        PluginLog.Log($"SelectTabTargetConeDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
+        PluginLog.LogVerbose($"SelectTabTargetConeDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
       }
       return originalResult;
@@ -83,10 +134,11 @@ namespace TobiiPlugin
 
     private IntPtr SelectInitialTabTargetDetour(IntPtr targetSystem, IntPtr gameObjects, IntPtr camera, IntPtr a4)
     {
-      var originalResult = selectInitialTabTargetHook.Original(targetSystem, gameObjects, camera, a4);
-      if (Configuration.Enabled && ClosestMatch != null && Configuration.InitialTabTargetEnabled)
+      PluginLog.LogVerbose($"SelectInitialTabTargetDetour - {targetSystem:X} {gameObjects:X} {camera:X} {a4:X}");
+      var originalResult = selectInitialTabTargetHook?.Original(targetSystem, gameObjects, camera, a4) ?? IntPtr.Zero;
+      if (Configuration.Enabled && ClosestMatch != null && NeedsOverwrite())
       {
-        PluginLog.Log($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
+        PluginLog.LogVerbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
       }
       return originalResult;
@@ -97,6 +149,32 @@ namespace TobiiPlugin
         [RequiredVersion("1.0")] CommandManager commandManager,
         [RequiredVersion("1.0")] ChatGui chatGui)
     {
+      NativeLibrary.SetDllImportResolver(typeof(TobiiPlugin).Assembly, (libraryName, assembly, searchPath) =>
+      {
+        var tobiiPath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub", "app-3.0.1-beta0008");
+        if (Path.Exists(tobiiPath))
+        {
+          if (libraryName == "tobii_gameintegration_x64.dll")
+          {
+            var lib = Path.Join(tobiiPath, "tobii_gameintegration_x64.dll");
+            PluginLog.LogVerbose("Loading Tobii Game Integration DLL from " + lib);
+            return NativeLibrary.Load(lib);
+          }
+          else if (libraryName == "tobii_gameintegration_x86.dll")
+          {
+            var lib = Path.Join(tobiiPath, "tobii_gameintegration_x86.dll");
+            PluginLog.LogVerbose("Loading Tobii Game Integration DLL from " + lib);
+            return NativeLibrary.Load(lib);
+          }
+        }
+        else
+        {
+          throw new Exception("Tobii Game Hub not found. Please install Tobii Game Hub 3.0.1 Beta 8");
+        }
+
+        return IntPtr.Zero;
+      });
+
       pluginInterface.Create<Service>();
 
       PluginInterface = pluginInterface;
@@ -134,7 +212,14 @@ namespace TobiiPlugin
         HelpMessage = "togggles the overlay"
       });
 
-      TobiiService = new TobiiService();
+      try
+      {
+        TrackerService = null;
+      }
+      catch (Exception ex)
+      {
+        PluginLog.LogError(ex.Message);
+      }
 
       // Sig courtesy of Wintermute
       if (Service.SigScanner.TryScanText("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF", out var highlightGameObjectSigAddr))
@@ -149,7 +234,7 @@ namespace TobiiPlugin
       }
 
       // Sig courtesy of Avaflow
-      if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 27", out var selectTabTargetIgnoreDepthAddr))
+      if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 27 48 8B 00", out var selectTabTargetIgnoreDepthAddr))
       {
         PluginLog.LogDebug("Found SIG for SelectTabTargetIgnoreDepth", selectTabTargetIgnoreDepthAddr.ToString("X"));
         selectTabTargetIgnoreDepthHook = Hook<SelectTabTargetDelegate>.FromAddress(selectTabTargetIgnoreDepthAddr, new SelectTabTargetDelegate(SelectTabTargetIgnoreDepthDetour));
@@ -198,7 +283,7 @@ namespace TobiiPlugin
       selectTabTargetConeHook?.Dispose();
       selectTabTargetIgnoreDepthHook?.Dispose();
 
-      TobiiService.Shutdown();
+      TrackerService?.Shutdown();
 
       Service.Framework.Update -= OnUpdate;
       PluginInterface.UiBuilder.Draw -= DrawUI;
@@ -240,6 +325,7 @@ namespace TobiiPlugin
     private void DrawUI()
     {
       WindowSystem.Draw();
+      TrackerService?.Draw();
     }
 
     private void DrawConfigUI()
@@ -299,122 +385,126 @@ namespace TobiiPlugin
       var player = Service.ClientState.LocalPlayer;
       var position = player?.Position ?? new Vector3();
 
-      if (Configuration.Enabled && Condition.Any() && player != null)
+      if (Configuration.Enabled && TrackerService != null)
       {
-        if (!TobiiService.IsTracking)
+        if (!TrackerService.IsTracking)
         {
           if (Configuration.AutoStartTracking && !autoStarted)
           {
-            TobiiService.StartTrackingWindow(PluginInterface.UiBuilder.WindowHandlePtr);
+            TrackerService.StartTrackingWindow(PluginInterface.UiBuilder.WindowHandlePtr);
             autoStarted = true;
             PluginLog.LogDebug("Tobii Eye Tracking auto-start.");
           }
           return;
         }
 
-        TobiiService.Update();
+        TrackerService.Update();
 
-        unsafe
+        if (Condition.Any() && player != null && TrackerService != null)
         {
-          var size = ImGui.GetIO().DisplaySize;
-          Vector2 gazeScreenPos = new Vector2(
-           TobiiService.LastGazeX * (size.X / 2) + (size.X / 2),
-           -TobiiService.LastGazeY * (size.Y / 2) + (size.Y / 2));
 
-          if (Service.GameGui.ScreenToWorld(gazeScreenPos, out Vector3 worldPos))
+          unsafe
           {
-            var closestDistance = float.MaxValue;
+            var size = ImGui.GetIO().DisplaySize;
+            Vector2 gazeScreenPos = new Vector2(
+             TrackerService.LastGazeX * (size.X / 2) + (size.X / 2),
+             -TrackerService.LastGazeY * (size.Y / 2) + (size.Y / 2));
 
-            foreach (var actor in ObjectTable)
+            if (Service.GameGui.ScreenToWorld(gazeScreenPos, out Vector3 worldPos))
             {
-              if (actor == null)
+              var closestDistance = float.MaxValue;
+
+              foreach (var actor in ObjectTable)
               {
-                continue;
-              }
-              var gos = (GameObjectStruct*)actor.Address;
-              if (gos->GetIsTargetable() && actor != player)
-              {
-                var distance = FFXIVClientStructs.FFXIV.Common.Math.Vector3.Distance(worldPos, actor.Position);
-                if (ClosestMatch == null)
+                if (actor == null)
                 {
-                  ClosestMatch = actor;
-                  closestDistance = distance;
                   continue;
                 }
-
-                if (closestDistance > distance)
+                var gos = (GameObjectStruct*)actor.Address;
+                if (gos->GetIsTargetable() && actor != player)
                 {
-                  ClosestMatch = actor;
-                  closestDistance = distance;
-                  IsRaycasted = false;
+                  var distance = FFXIVClientStructs.FFXIV.Common.Math.Vector3.Distance(worldPos, actor.Position);
+                  if (ClosestMatch == null)
+                  {
+                    ClosestMatch = actor;
+                    closestDistance = distance;
+                    continue;
+                  }
+
+                  if (closestDistance > distance)
+                  {
+                    ClosestMatch = actor;
+                    closestDistance = distance;
+                    IsRaycasted = false;
+                  }
                 }
               }
             }
-          }
 
-          if (Configuration.UseRaycast)
-          {
-            for (var i = 0; i < Configuration.GazeCircleSegments + 1; i++)
+            if (Configuration.UseRaycast)
             {
-              int rayPosX, rayPosY;
-              if (i == Configuration.GazeCircleSegments)
+              for (var i = 0; i < Configuration.GazeCircleSegments + 1; i++)
               {
-                // Casta  ray exactly at the center of the gaze point
-                rayPosX = (int)gazeScreenPos.X;
-                rayPosY = (int)gazeScreenPos.Y;
-              }
-              else
-              {
-                // Cast a ray in a circle around the gaze point, with a randomized offset
-                var randomFloat = (float)Random.NextDouble();
-                rayPosX = (int)(gazeScreenPos.X + (randomFloat * Configuration.GazeCircleRadius * Math.Cos(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
-                rayPosY = (int)(gazeScreenPos.Y + (randomFloat * Configuration.GazeCircleRadius * Math.Sin(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
-              }
-              var rayHit = GetMouseOverObject(rayPosX, rayPosY);
-              if (rayHit != null)
-              {
-                if (gameObjectHeatMap.ContainsKey((IntPtr)rayHit))
+                int rayPosX, rayPosY;
+                if (i == Configuration.GazeCircleSegments)
                 {
-                  gameObjectHeatMap[(IntPtr)rayHit] += Configuration.HeatIncrement;
+                  // Casta  ray exactly at the center of the gaze point
+                  rayPosX = (int)gazeScreenPos.X;
+                  rayPosY = (int)gazeScreenPos.Y;
                 }
                 else
                 {
-                  gameObjectHeatMap[(IntPtr)rayHit] = Configuration.HeatIncrement;
+                  // Cast a ray in a circle around the gaze point, with a randomized offset
+                  var randomFloat = (float)Random.NextDouble();
+                  rayPosX = (int)(gazeScreenPos.X + (randomFloat * Configuration.GazeCircleRadius * Math.Cos(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
+                  rayPosY = (int)(gazeScreenPos.Y + (randomFloat * Configuration.GazeCircleRadius * Math.Sin(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
+                }
+                var rayHit = GetMouseOverObject(rayPosX, rayPosY);
+                if (rayHit != null)
+                {
+                  if (gameObjectHeatMap.ContainsKey((IntPtr)rayHit))
+                  {
+                    gameObjectHeatMap[(IntPtr)rayHit] += Configuration.HeatIncrement;
+                  }
+                  else
+                  {
+                    gameObjectHeatMap[(IntPtr)rayHit] = Configuration.HeatIncrement;
+                  }
                 }
               }
-            }
 
-            var ptr = FindMaxHeat();
-            if (ptr != null)
-            {
-              var raycasted = ObjectTable.FirstOrDefault(x => (GameObjectStruct*)x.Address == (GameObjectStruct*)ptr);
-              if (raycasted != null)
+              var ptr = FindMaxHeat();
+              if (ptr != null)
               {
-                ClosestMatch = raycasted;
-                IsRaycasted = true;
+                var raycasted = ObjectTable.FirstOrDefault(x => (GameObjectStruct*)x.Address == (GameObjectStruct*)ptr);
+                if (raycasted != null)
+                {
+                  ClosestMatch = raycasted;
+                  IsRaycasted = true;
+                }
               }
+
+              DecayHeat();
             }
 
-            DecayHeat();
-          }
-
-          if (ClosestMatch != null)
-          {
-            if (lastHighlight != null && lastHighlight.Address != ClosestMatch.Address)
+            if (ClosestMatch != null)
             {
-              highlightGameObjectWithColor(lastHighlight.Address, 0);
-              lastHighlight = null;
+              if (lastHighlight != null && lastHighlight.Address != ClosestMatch.Address)
+              {
+                highlightGameObjectWithColor(lastHighlight.Address, 0);
+                lastHighlight = null;
+              }
+
+              highlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
+              lastHighlight = ClosestMatch;
             }
-
-            highlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
-            lastHighlight = ClosestMatch;
-          }
-          if (ClosestMatch == null)
-          {
-            if (lastHighlight != null)
+            if (ClosestMatch == null)
             {
-              highlightGameObjectWithColor(lastHighlight.Address, 0);
-              lastHighlight = null;
+              if (lastHighlight != null)
+              {
+                highlightGameObjectWithColor(lastHighlight.Address, 0);
+                lastHighlight = null;
+              }
             }
           }
         }

@@ -34,21 +34,6 @@
   </ItemGroup>
   
   <ItemGroup>
-    <Reference Include="Tobii.GameIntegration.Net">
-      <HintPath>lib\Tobii.GameIntegration.Net.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="lib\tobii_gameintegration_x64.dll" Link="%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="lib\tobii_gameintegration_x86.dll" Link="%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="DalamudPackager" Version="2.1.10" />
     <Reference Include="FFXIVClientStructs">
       <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
