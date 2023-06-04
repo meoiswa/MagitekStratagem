@@ -57,6 +57,17 @@ namespace TobiiPlugin
 
     public override void Draw()
     {
+      ImGui.NewLine();
+      ImGui.TextWrapped("Disclaimer: This plugin is not officially supported by Tobii. Use at your own risk."
+        +" Due to the nature of hot-loading Tobii SDK DLLs, this plugin may crash your game unexpectedly. "
+        +" You must have Tobii Game Hub v3.0.1-beta0008 installed, and use a Tobii Eye Tracker that is compatible (4 or 5)");
+
+      ImGui.NewLine();
+      ImGui.TextWrapped("In compliance with Tobii guidelines, this plugin will not record nor share Eye Tracking data with any other software component, and Eye Tracking data is immediately disposed after use.");
+      ImGui.NewLine();
+
+      ImGui.Separator();
+
       if (plugin.ErrorHooking)
       {
         ImGui.Text("Error hooking functions.");

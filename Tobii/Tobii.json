@@ -2,10 +2,12 @@
   "Author": "Meoiswa",
   "Name": "Tobii",
   "Punchline": "Give 'em the mean look!",
-  "Description": "Tobii integration for FFXIV",
+  "Description": "Tobii integration for FFXIV (Experimental)",
   "InternalName": "Tobii",
   "ApplicableVersion": "any",
   "Tags": [
-    "UI"
+    "UI",
+    "Accessibility",
+    "Peripheral"
   ]
 }

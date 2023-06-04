@@ -138,7 +138,7 @@ namespace TobiiPlugin
       var originalResult = selectInitialTabTargetHook?.Original(targetSystem, gameObjects, camera, a4) ?? IntPtr.Zero;
       if (Configuration.Enabled && ClosestMatch != null && NeedsOverwrite())
       {
-        PluginLog.LogVerbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
+        PluginLog.LogVerbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}"); 
         return ClosestMatch.Address;
       }
       return originalResult;
@@ -152,6 +152,7 @@ namespace TobiiPlugin
       NativeLibrary.SetDllImportResolver(typeof(TobiiPlugin).Assembly, (libraryName, assembly, searchPath) =>
       {
         var tobiiPath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub", "app-3.0.1-beta0008");
+        PluginLog.LogVerbose("Searching potential Tobii GameHub install path", tobiiPath);
         if (Path.Exists(tobiiPath))
         {
           if (libraryName == "tobii_gameintegration_x64.dll")
@@ -214,7 +215,7 @@ namespace TobiiPlugin
 
       try
       {
-        TrackerService = null;
+        TrackerService = new TobiiService();
       }
       catch (Exception ex)
       {
