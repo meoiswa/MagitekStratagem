@@ -138,7 +138,7 @@ namespace TobiiPlugin
       var originalResult = selectInitialTabTargetHook?.Original(targetSystem, gameObjects, camera, a4) ?? IntPtr.Zero;
       if (Configuration.Enabled && ClosestMatch != null && NeedsOverwrite())
       {
-        PluginLog.LogVerbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}"); 
+        PluginLog.LogVerbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
       }
       return originalResult;
@@ -280,6 +280,15 @@ namespace TobiiPlugin
 
     public void Dispose()
     {
+      unsafe
+      {
+        if (lastHighlight != null && highlightGameObjectWithColor != null)
+        {
+          highlightGameObjectWithColor(lastHighlight.Address, 0);
+          lastHighlight = null;
+        }
+      }
+
       selectInitialTabTargetHook?.Dispose();
       selectTabTargetConeHook?.Dispose();
       selectTabTargetIgnoreDepthHook?.Dispose();
@@ -342,7 +351,14 @@ namespace TobiiPlugin
       var localPlayer = Control.Instance()->LocalPlayer;
       if (camera == null || localPlayer == null || ObjectFilterArray1.Length <= 0)
         return null;
-      return TargetSystem.Instance()->GetMouseOverObject(x, y, ObjectFilterArray1Ptr, camera);
+      if (TargetSystem.Instance() != null && TargetSystem.Instance() != default(TargetSystemStruct*))
+      {
+        return TargetSystem.Instance()->GetMouseOverObject(x, y, ObjectFilterArray1Ptr, camera);
+      }
+      else
+      {
+        return null;
+      }
     }
 
     private IntPtr? FindMaxHeat()
