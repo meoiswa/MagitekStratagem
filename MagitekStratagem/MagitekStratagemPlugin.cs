@@ -23,14 +23,14 @@ using System.Linq;
 using System.Collections.Generic;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 
-namespace TobiiPlugin
+namespace MagitekStratagemPlugin
 {
-  public sealed class TobiiPlugin : IDalamudPlugin
+  public sealed class MagitekStratagemPlugin : IDalamudPlugin
   {
-    public string Name => "Tobii";
+    public string Name => "Magitek Stratagem";
 
-    private const string commandName = "/tobii";
-    private const string overlayCommandName = "/tobiioverlay";
+    private const string commandName = "/magiteks";
+    private const string overlayCommandName = "/magiteksoverlay";
     private GameObject? lastHighlight = null;
     private bool autoStarted;
 
@@ -42,8 +42,8 @@ namespace TobiiPlugin
     public Condition Condition { get; init; }
     public ObjectTable ObjectTable { get; init; }
     public Random Random { get; }
-    public TobiiUI Window { get; init; }
-    public TobiiOverlay Overlay { get; init; }
+    public MagitekStratagemUI Window { get; init; }
+    public MagitekStratagemOverlay Overlay { get; init; }
     public ITrackerService? TrackerService { get; set; }
     public GameObject? ClosestMatch { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
@@ -144,12 +144,12 @@ namespace TobiiPlugin
       return originalResult;
     }
 
-    public TobiiPlugin(
+    public MagitekStratagemPlugin(
         [RequiredVersion("1.0")] DalamudPluginInterface pluginInterface,
         [RequiredVersion("1.0")] CommandManager commandManager,
         [RequiredVersion("1.0")] ChatGui chatGui)
     {
-      NativeLibrary.SetDllImportResolver(typeof(TobiiPlugin).Assembly, (libraryName, assembly, searchPath) =>
+      NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
       {
         var tobiiPath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub", "app-3.0.1-beta0008");
         PluginLog.LogVerbose("Searching potential Tobii GameHub install path", tobiiPath);
@@ -181,7 +181,7 @@ namespace TobiiPlugin
       PluginInterface = pluginInterface;
       CommandManager = commandManager;
       ChatGui = chatGui;
-      WindowSystem = new("TobiiPlugin");
+      WindowSystem = new("MagitekStratagemPlugin");
 
       Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
       Configuration.Initialize(this);
@@ -191,12 +191,12 @@ namespace TobiiPlugin
 
       Random = new Random();
 
-      Window = new TobiiUI(this)
+      Window = new MagitekStratagemUI(this)
       {
         IsOpen = Configuration.IsVisible
       };
 
-      Overlay = new TobiiOverlay(this)
+      Overlay = new MagitekStratagemOverlay(this)
       {
         IsOpen = true
       };

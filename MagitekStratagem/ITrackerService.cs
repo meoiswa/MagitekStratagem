@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Dalamud.Logging;
 using Tobii.GameIntegration.Net;
 
-namespace TobiiPlugin
+namespace MagitekStratagemPlugin
 {
   public interface ITrackerService
   {

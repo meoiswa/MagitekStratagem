@@ -10,7 +10,7 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 using ImGuiNET;
 using Tobii.GameIntegration.Net;
 
-namespace TobiiPlugin
+namespace MagitekStratagemPlugin
 {
   public sealed class FakeService : ITrackerService
   {

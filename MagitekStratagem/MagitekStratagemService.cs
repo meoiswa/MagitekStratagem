@@ -1,13 +1,10 @@
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Dalamud.Logging;
 using Tobii.GameIntegration.Net;
 
-namespace TobiiPlugin
+namespace MagitekStratagemPlugin
 {
-  public sealed class TobiiService : ITrackerService
+    public sealed class TobiiService : ITrackerService
   {
     public bool IsTracking { get; private set; }
     public long LastGazeTimeStamp { get; private set; }
@@ -24,7 +21,7 @@ namespace TobiiPlugin
 
     public TobiiService()
     {
-      TobiiGameIntegrationApi.SetApplicationName("Tobii Game Integration Test");
+      TobiiGameIntegrationApi.SetApplicationName("FFXIV Magitek Stratagem");
       TobiiGameIntegrationApi.IsApiInitialized();
       TobiiGameIntegrationApi.UpdateTrackerInfos();
     }

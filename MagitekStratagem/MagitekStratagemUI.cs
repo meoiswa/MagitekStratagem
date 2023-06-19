@@ -1,23 +1,19 @@
-using Dalamud.Logging;
 using Dalamud.Interface.Windowing;
-using FFXIVClientStructs.FFXIV.Client.Game.Control;
-using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using ImGuiNET;
 using System;
 using System.Numerics;
-using Dalamud.Interface;
 
-namespace TobiiPlugin
+namespace MagitekStratagemPlugin
 {
-  // It is good to have this be disposable in general, in case you ever need it
-  // to do any cleanup
-  public unsafe class TobiiUI : Window, IDisposable
+    // It is good to have this be disposable in general, in case you ever need it
+    // to do any cleanup
+    public unsafe class MagitekStratagemUI : Window, IDisposable
   {
-    private readonly TobiiPlugin plugin;
+    private readonly MagitekStratagemPlugin plugin;
 
-    public TobiiUI(TobiiPlugin plugin)
+    public MagitekStratagemUI(MagitekStratagemPlugin plugin)
       : base(
-        "Tobii##ConfigWindow",
+        "MagitekStratagem##ConfigWindow",
         ImGuiWindowFlags.AlwaysAutoResize
         | ImGuiWindowFlags.NoResize
         | ImGuiWindowFlags.NoCollapse

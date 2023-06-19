@@ -2,7 +2,7 @@ using Dalamud.Configuration;
 using Dalamud.Plugin;
 using System;
 
-namespace TobiiPlugin
+namespace MagitekStratagemPlugin
 {
   [Serializable]
   public class Configuration : IPluginConfiguration
@@ -36,8 +36,8 @@ namespace TobiiPlugin
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]
-    private TobiiPlugin? plugin;
-    public void Initialize(TobiiPlugin plugin) => this.plugin = plugin;
+    private MagitekStratagemPlugin? plugin;
+    public void Initialize(MagitekStratagemPlugin plugin) => this.plugin = plugin;
     public void Save()
     {
       plugin!.SaveConfiguration();

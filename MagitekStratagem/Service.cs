@@ -7,7 +7,7 @@ using Dalamud.Game.Gui;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 
-namespace TobiiPlugin
+namespace MagitekStratagemPlugin
 {
   public class Service
   {
