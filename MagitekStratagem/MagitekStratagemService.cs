@@ -38,11 +38,11 @@ namespace MagitekStratagemPlugin
         if (TobiiGameIntegrationApi.TrackWindow(windowHandle))
         {
           IsTracking = true;
-          PluginLog.LogDebug("Tracking Window.");
+          Service.PluginLog.Debug("Tracking Window.");
         }
         else
         {
-          PluginLog.LogDebug("Failed to track window.");
+          Service.PluginLog.Debug("Failed to track window.");
         }
       }
     }

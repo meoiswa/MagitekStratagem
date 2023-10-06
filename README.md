@@ -1,4 +1,4 @@
-# Tobii Plugin for Dalamud
+# Magitek Stratagem - Tobii Game Integration Plugin for Dalamud
 
 ## Experimental Tobii integration for FFXIV
 

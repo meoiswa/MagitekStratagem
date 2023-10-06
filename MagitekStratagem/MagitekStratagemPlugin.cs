@@ -22,6 +22,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using System.Linq;
 using System.Collections.Generic;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
+using Dalamud.Plugin.Services;
 
 namespace MagitekStratagemPlugin
 {
@@ -35,12 +36,9 @@ namespace MagitekStratagemPlugin
     private bool autoStarted;
 
     public DalamudPluginInterface PluginInterface { get; init; }
-    public CommandManager CommandManager { get; init; }
-    public ChatGui ChatGui { get; init; }
+    public ICommandManager CommandManager { get; init; }
     public Configuration Configuration { get; init; }
     public WindowSystem WindowSystem { get; init; }
-    public Condition Condition { get; init; }
-    public ObjectTable ObjectTable { get; init; }
     public Random Random { get; }
     public MagitekStratagemUI Window { get; init; }
     public MagitekStratagemOverlay Overlay { get; init; }
@@ -107,12 +105,12 @@ namespace MagitekStratagemPlugin
         bool inverse,
         IntPtr a5)
     {
-      PluginLog.LogVerbose($"SelectTabTargetIgnoreDepthDetour - {targetSystem:X} {camera:X} {gameObjects:X} {inverse} {a5:X}");
+      Service.PluginLog.Verbose($"SelectTabTargetIgnoreDepthDetour - {targetSystem:X} {camera:X} {gameObjects:X} {inverse} {a5:X}");
       var originalResult = selectTabTargetIgnoreDepthHook?.Original(targetSystem, camera, gameObjects, inverse, a5) ?? IntPtr.Zero;
 
       if (originalResult != IntPtr.Zero && Configuration.Enabled && ClosestMatch != null && NeedsOverwrite())
       {
-        PluginLog.LogVerbose($"SelectTabTargetIgnoreDepthDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
+        Service.PluginLog.Verbose($"SelectTabTargetIgnoreDepthDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
       }
       return originalResult;
@@ -121,12 +119,12 @@ namespace MagitekStratagemPlugin
     private IntPtr SelectTabTargetConeDetour(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects, bool inverse,
         IntPtr a5)
     {
-      PluginLog.LogVerbose($"SelectTabTargetConeDetour - {targetSystem:X} {camera:X} {gameObjects:X} {inverse} {a5:X}");
+      Service.PluginLog.Verbose($"SelectTabTargetConeDetour - {targetSystem:X} {camera:X} {gameObjects:X} {inverse} {a5:X}");
       var originalResult = selectTabTargetConeHook?.Original(targetSystem, camera, gameObjects, inverse, a5) ?? IntPtr.Zero;
 
       if (originalResult != IntPtr.Zero && Configuration.Enabled && ClosestMatch != null && NeedsOverwrite())
       {
-        PluginLog.LogVerbose($"SelectTabTargetConeDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
+        Service.PluginLog.Verbose($"SelectTabTargetConeDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
       }
       return originalResult;
@@ -134,11 +132,11 @@ namespace MagitekStratagemPlugin
 
     private IntPtr SelectInitialTabTargetDetour(IntPtr targetSystem, IntPtr gameObjects, IntPtr camera, IntPtr a4)
     {
-      PluginLog.LogVerbose($"SelectInitialTabTargetDetour - {targetSystem:X} {gameObjects:X} {camera:X} {a4:X}");
+      Service.PluginLog.Verbose($"SelectInitialTabTargetDetour - {targetSystem:X} {gameObjects:X} {camera:X} {a4:X}");
       var originalResult = selectInitialTabTargetHook?.Original(targetSystem, gameObjects, camera, a4) ?? IntPtr.Zero;
       if (Configuration.Enabled && ClosestMatch != null && NeedsOverwrite())
       {
-        PluginLog.LogVerbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
+        Service.PluginLog.Verbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {ClosestMatch.Address:X}");
         return ClosestMatch.Address;
       }
       return originalResult;
@@ -146,31 +144,30 @@ namespace MagitekStratagemPlugin
 
     public MagitekStratagemPlugin(
         [RequiredVersion("1.0")] DalamudPluginInterface pluginInterface,
-        [RequiredVersion("1.0")] CommandManager commandManager,
-        [RequiredVersion("1.0")] ChatGui chatGui)
+        [RequiredVersion("1.0")] ICommandManager commandManager)
     {
       NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
       {
-        var tobiiPath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub", "app-3.0.1-beta0008");
-        PluginLog.LogVerbose("Searching potential Tobii GameHub install path", tobiiPath);
+        var tobiiPath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub", "app-3.2.0");
+        Service.PluginLog.Verbose("Searching potential Tobii GameHub install path", tobiiPath);
         if (Path.Exists(tobiiPath))
         {
           if (libraryName == "tobii_gameintegration_x64.dll")
           {
             var lib = Path.Join(tobiiPath, "tobii_gameintegration_x64.dll");
-            PluginLog.LogVerbose("Loading Tobii Game Integration DLL from " + lib);
+            Service.PluginLog.Verbose("Loading Tobii Game Integration DLL from " + lib);
             return NativeLibrary.Load(lib);
           }
           else if (libraryName == "tobii_gameintegration_x86.dll")
           {
             var lib = Path.Join(tobiiPath, "tobii_gameintegration_x86.dll");
-            PluginLog.LogVerbose("Loading Tobii Game Integration DLL from " + lib);
+            Service.PluginLog.Verbose("Loading Tobii Game Integration DLL from " + lib);
             return NativeLibrary.Load(lib);
           }
         }
         else
         {
-          throw new Exception("Tobii Game Hub not found. Please install Tobii Game Hub 3.0.1 Beta 8");
+          throw new Exception("Tobii Game Hub not found. Please install Tobii Game Hub 3.2.0");
         }
 
         return IntPtr.Zero;
@@ -180,14 +177,10 @@ namespace MagitekStratagemPlugin
 
       PluginInterface = pluginInterface;
       CommandManager = commandManager;
-      ChatGui = chatGui;
       WindowSystem = new("MagitekStratagemPlugin");
 
       Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
       Configuration.Initialize(this);
-
-      Condition = Service.Condition;
-      ObjectTable = Service.ObjectTable;
 
       Random = new Random();
 
@@ -219,57 +212,58 @@ namespace MagitekStratagemPlugin
       }
       catch (Exception ex)
       {
-        PluginLog.LogError(ex.Message);
+        Service.PluginLog.Error(ex.Message);
       }
 
       // Sig courtesy of Wintermute
       if (Service.SigScanner.TryScanText("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF", out var highlightGameObjectSigAddr))
       {
-        PluginLog.LogDebug("Found SIG for HighlightGameObjectWithColor", highlightGameObjectSigAddr.ToString("X"));
+        Service.PluginLog.Debug("Found SIG for HighlightGameObjectWithColor", highlightGameObjectSigAddr.ToString("X"));
         highlightGameObjectWithColor = Marshal.GetDelegateForFunctionPointer<HighlightGameObjectWithColorDelegate>(highlightGameObjectSigAddr);
       }
       else
       {
-        PluginLog.LogDebug("Failed to adquire SIG for HighlightGameObjectWithColor");
+        Service.PluginLog.Debug("Failed to adquire SIG for HighlightGameObjectWithColor");
         ErrorHooking = true;
       }
 
       // Sig courtesy of Avaflow
       if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 27 48 8B 00", out var selectTabTargetIgnoreDepthAddr))
       {
-        PluginLog.LogDebug("Found SIG for SelectTabTargetIgnoreDepth", selectTabTargetIgnoreDepthAddr.ToString("X"));
-        selectTabTargetIgnoreDepthHook = Hook<SelectTabTargetDelegate>.FromAddress(selectTabTargetIgnoreDepthAddr, new SelectTabTargetDelegate(SelectTabTargetIgnoreDepthDetour));
+        Service.PluginLog.Debug("Found SIG for SelectTabTargetIgnoreDepth", selectTabTargetIgnoreDepthAddr.ToString("X"));
+        
+        selectTabTargetIgnoreDepthHook = Service.IGameInterop.HookFromAddress(selectTabTargetIgnoreDepthAddr, new SelectTabTargetDelegate(SelectTabTargetIgnoreDepthDetour));
         selectTabTargetIgnoreDepthHook.Enable();
       }
       else
       {
-        PluginLog.LogDebug("Failed to adquire SIG for SelectTabTargetIgnoreDepth");
+        Service.PluginLog.Debug("Failed to adquire SIG for SelectTabTargetIgnoreDepth");
         ErrorHooking = true;
       }
 
       // Sig courtesy of Avaflow
       if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? EB 4C 41 B1 01", out var selectTabTargetConeAddr))
       {
-        PluginLog.LogDebug("Found SIG for SelectTabTargetCone", selectTabTargetConeAddr.ToString("X"));
-        selectTabTargetConeHook = Hook<SelectTabTargetDelegate>.FromAddress(selectTabTargetConeAddr, new SelectTabTargetDelegate(SelectTabTargetConeDetour));
+        Service.PluginLog.Debug("Found SIG for SelectTabTargetCone", selectTabTargetConeAddr.ToString("X"));
+        selectTabTargetConeHook = Service.IGameInterop.HookFromAddress(selectTabTargetConeAddr, new SelectTabTargetDelegate(SelectTabTargetConeDetour));
         selectTabTargetConeHook.Enable();
       }
       else
       {
-        PluginLog.LogDebug("Failed to adquire SIG for SelectTabTargetCone");
+        Service.PluginLog.Debug("Failed to adquire SIG for SelectTabTargetCone");
         ErrorHooking = true;
       }
 
       // Sig courtesy of Avaflow
       if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? EB 37 48 85 C9", out var selectInitialTabTargetSigAddr))
       {
-        PluginLog.LogDebug("Found SIG for SelectInitialTabTarget", selectInitialTabTargetSigAddr.ToString("X"));
-        selectInitialTabTargetHook = Hook<SelectInitialTabTargetDelegate>.FromAddress(selectInitialTabTargetSigAddr, new SelectInitialTabTargetDelegate(SelectInitialTabTargetDetour));
+        Service.PluginLog.Debug("Found SIG for SelectInitialTabTarget", selectInitialTabTargetSigAddr.ToString("X"));
+        selectInitialTabTargetHook = Service.IGameInterop.HookFromAddress(selectInitialTabTargetSigAddr, new SelectInitialTabTargetDelegate(SelectInitialTabTargetDetour));
         selectInitialTabTargetHook.Enable();
       }
       else
       {
-        PluginLog.LogDebug("Failed to adquire SIG for SelectInitialTabTarget");
+        Service.PluginLog.Debug("Failed to adquire SIG for SelectInitialTabTarget");
         ErrorHooking = true;
       }
 
@@ -391,7 +385,7 @@ namespace MagitekStratagemPlugin
       }
     }
 
-    public void OnUpdate(Framework framework)
+    public void OnUpdate(IFramework framework)
     {
       if (selectTabTargetConeHook == null || selectTabTargetIgnoreDepthHook == null || selectInitialTabTargetHook == null || highlightGameObjectWithColor == null)
       {
@@ -410,14 +404,14 @@ namespace MagitekStratagemPlugin
           {
             TrackerService.StartTrackingWindow(PluginInterface.UiBuilder.WindowHandlePtr);
             autoStarted = true;
-            PluginLog.LogDebug("Tobii Eye Tracking auto-start.");
+            Service.PluginLog.Debug("Tobii Eye Tracking auto-start.");
           }
           return;
         }
 
         TrackerService.Update();
 
-        if (Condition.Any() && player != null && TrackerService != null)
+        if (Service.Condition.Any() && player != null && TrackerService != null)
         {
 
           unsafe
@@ -431,7 +425,7 @@ namespace MagitekStratagemPlugin
             {
               var closestDistance = float.MaxValue;
 
-              foreach (var actor in ObjectTable)
+              foreach (var actor in Service.ObjectTable)
               {
                 if (actor == null)
                 {
@@ -493,7 +487,7 @@ namespace MagitekStratagemPlugin
               var ptr = FindMaxHeat();
               if (ptr != null)
               {
-                var raycasted = ObjectTable.FirstOrDefault(x => (GameObjectStruct*)x.Address == (GameObjectStruct*)ptr);
+                var raycasted = Service.ObjectTable.FirstOrDefault(x => (GameObjectStruct*)x.Address == (GameObjectStruct*)ptr);
                 if (raycasted != null)
                 {
                   ClosestMatch = raycasted;
