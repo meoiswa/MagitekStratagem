@@ -23,6 +23,7 @@ using System.Linq;
 using System.Collections.Generic;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Dalamud.Plugin.Services;
+using System.Text.RegularExpressions;
 
 namespace MagitekStratagemPlugin
 {
@@ -142,13 +143,43 @@ namespace MagitekStratagemPlugin
       return originalResult;
     }
 
+    public string LocateNewestTobiiGameHub(string dirPath)
+    {
+      var regex = new Regex(@"app-([0-9]+\.[0-9]+\.[0-9])-?.*");
+      var dirs = Directory.GetDirectories(dirPath);
+      var highestVersion = new Version(0, 0, 0);
+      var highestVersionDir = "";
+      foreach (var dir in dirs)
+      {
+        var dirName = Path.GetFileName(dir);
+        var versPart = regex.Match(dirName).Groups[1].Value;
+        if (Version.TryParse(versPart, out var version))
+        {
+          Console.WriteLine(version);
+          if (version > highestVersion)
+          {
+            highestVersion = version;
+            highestVersionDir = dir;
+          }
+        }
+      }
+      return highestVersionDir;
+    }
+
     public MagitekStratagemPlugin(
         [RequiredVersion("1.0")] DalamudPluginInterface pluginInterface,
         [RequiredVersion("1.0")] ICommandManager commandManager)
     {
       NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
       {
-        var tobiiPath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub", "app-3.2.0");
+        var tobiiDir = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub");
+        if (!Path.Exists(tobiiDir))
+        {
+          throw new Exception("Tobii Game Hub not found.");
+        }
+
+        var tobiiPath = LocateNewestTobiiGameHub(tobiiDir);
+
         Service.PluginLog.Verbose("Searching potential Tobii GameHub install path", tobiiPath);
         if (Path.Exists(tobiiPath))
         {
@@ -167,7 +198,7 @@ namespace MagitekStratagemPlugin
         }
         else
         {
-          throw new Exception("Tobii Game Hub not found. Please install Tobii Game Hub 3.2.0");
+          throw new Exception("Something went wrong locating the newest version of Tobii Game Hub.");
         }
 
         return IntPtr.Zero;
@@ -287,8 +318,6 @@ namespace MagitekStratagemPlugin
       selectTabTargetConeHook?.Dispose();
       selectTabTargetIgnoreDepthHook?.Dispose();
 
-      TrackerService?.Shutdown();
-
       Service.Framework.Update -= OnUpdate;
       PluginInterface.UiBuilder.Draw -= DrawUI;
       PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
@@ -297,6 +326,8 @@ namespace MagitekStratagemPlugin
 
       CommandManager.RemoveHandler(commandName);
       CommandManager.RemoveHandler(overlayCommandName);
+
+      TrackerService?.Shutdown();
     }
 
     public void SaveConfiguration()
