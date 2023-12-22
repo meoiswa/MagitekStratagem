@@ -33,7 +33,9 @@ namespace MagitekStratagemPlugin
 
     private const string commandName = "/magiteks";
     private const string overlayCommandName = "/magiteksoverlay";
-    private GameObject? lastHighlight = null;
+
+    private unsafe uint? lastHighlightGameObjectId = null;
+
     private bool autoStarted;
 
     public DalamudPluginInterface PluginInterface { get; init; }
@@ -262,7 +264,7 @@ namespace MagitekStratagemPlugin
       if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 27 48 8B 00", out var selectTabTargetIgnoreDepthAddr))
       {
         Service.PluginLog.Debug("Found SIG for SelectTabTargetIgnoreDepth", selectTabTargetIgnoreDepthAddr.ToString("X"));
-        
+
         selectTabTargetIgnoreDepthHook = Service.IGameInterop.HookFromAddress(selectTabTargetIgnoreDepthAddr, new SelectTabTargetDelegate(SelectTabTargetIgnoreDepthDetour));
         selectTabTargetIgnoreDepthHook.Enable();
       }
@@ -307,10 +309,14 @@ namespace MagitekStratagemPlugin
     {
       unsafe
       {
-        if (lastHighlight != null && highlightGameObjectWithColor != null)
+        if (lastHighlightGameObjectId.HasValue && highlightGameObjectWithColor != null)
         {
-          highlightGameObjectWithColor(lastHighlight.Address, 0);
-          lastHighlight = null;
+          var obj = FindGameObject(lastHighlightGameObjectId.Value);
+          if (obj != null)
+          {
+            highlightGameObjectWithColor(obj.Address, 0);
+          }
+          lastHighlightGameObjectId = null;
         }
       }
 
@@ -368,13 +374,31 @@ namespace MagitekStratagemPlugin
       SetVisible(!Configuration.IsVisible);
     }
 
+    private unsafe GameObject? FindGameObject(uint objectId)
+    {
+      var objectTable = Service.ObjectTable;
+      for (var i = 0; i < objectTable.Count; i++)
+      {
+        var obj = objectTable[i];
+        if (obj == null)
+        {
+          continue;
+        }
+        if (obj.ObjectId == objectId)
+        {
+          return obj;
+        }
+      }
+      return null;
+    }
+
     private unsafe GameObjectStruct* GetMouseOverObject(int x, int y)
     {
       var ObjectFilterArray1Ptr = (GameObjectArray*)((IntPtr)TargetSystem.Instance() + 0x1a98);
       var ObjectFilterArray1 = *ObjectFilterArray1Ptr;
       var camera = Control.Instance()->CameraManager.Camera;
       var localPlayer = Control.Instance()->LocalPlayer;
-      if (camera == null || localPlayer == null || ObjectFilterArray1.Length <= 0)
+      if (!Service.Condition.Any() || camera == null || localPlayer == null || ObjectFilterArray1.Length <= 0)
         return null;
       if (TargetSystem.Instance() != null && TargetSystem.Instance() != default(TargetSystemStruct*))
       {
@@ -427,6 +451,12 @@ namespace MagitekStratagemPlugin
       var player = Service.ClientState.LocalPlayer;
       var position = player?.Position ?? new Vector3();
 
+      GameObject? lastHighlight = null;
+      if (lastHighlightGameObjectId.HasValue)
+      {
+        lastHighlight = FindGameObject(lastHighlightGameObjectId.Value);
+      }
+
       if (Configuration.Enabled && TrackerService != null)
       {
         if (!TrackerService.IsTracking)
@@ -444,7 +474,6 @@ namespace MagitekStratagemPlugin
 
         if (Service.Condition.Any() && player != null && TrackerService != null)
         {
-
           unsafe
           {
             var size = ImGui.GetIO().DisplaySize;
@@ -531,22 +560,19 @@ namespace MagitekStratagemPlugin
 
             if (ClosestMatch != null)
             {
-              if (lastHighlight != null && lastHighlight.Address != ClosestMatch.Address)
+              if (lastHighlight != null && lastHighlight.ObjectId != ClosestMatch.ObjectId)
               {
                 highlightGameObjectWithColor(lastHighlight.Address, 0);
-                lastHighlight = null;
+                lastHighlightGameObjectId = null;
               }
 
               highlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
-              lastHighlight = ClosestMatch;
+              lastHighlightGameObjectId = ClosestMatch.ObjectId;
             }
-            if (ClosestMatch == null)
+            else if (ClosestMatch == null && lastHighlight != null)
             {
-              if (lastHighlight != null)
-              {
-                highlightGameObjectWithColor(lastHighlight.Address, 0);
-                lastHighlight = null;
-              }
+              highlightGameObjectWithColor(lastHighlight.Address, 0);
+              lastHighlightGameObjectId = null;
             }
           }
         }
@@ -558,7 +584,7 @@ namespace MagitekStratagemPlugin
           if (lastHighlight != null)
           {
             highlightGameObjectWithColor(lastHighlight.Address, 0);
-            lastHighlight = null;
+            lastHighlightGameObjectId = null;
           }
         }
       }
