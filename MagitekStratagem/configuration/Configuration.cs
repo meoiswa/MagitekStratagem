@@ -33,6 +33,7 @@ namespace MagitekStratagemPlugin
     public bool OverrideSoftTarget { get; set; } = true;
     public bool OverrideSoftTargetAlways { get; set; } = false;
 
+    public bool IsCalibrationEditMode { get; set; } = false;
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]

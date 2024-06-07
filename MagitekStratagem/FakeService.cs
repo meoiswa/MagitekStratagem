@@ -1,14 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Threading;
-using System.Threading.Tasks;
-using Dalamud.Logging;
-using FFXIVClientStructs.FFXIV.Client.System.Framework;
-using FFXIVClientStructs.FFXIV.Client.UI;
 using ImGuiNET;
-using Tobii.GameIntegration.Net;
 
 namespace MagitekStratagemPlugin
 {
@@ -18,8 +11,12 @@ namespace MagitekStratagemPlugin
     public long LastGazeTimeStamp { get; private set; }
     public float LastGazeX { get; private set; }
     public float LastGazeY { get; private set; }
+    public float LastRawGazeX { get => LastGazeX; }
+    public float LastRawGazeY { get => LastGazeY; }
     public Vector2 LastCursorPos { get; private set; } = Vector2.Zero;
     public Vector2 DisplaySize { get; private set; } = Vector2.Zero;
+    public List<CalibrationPoint> CalibrationPoints { get; private set; } = new List<CalibrationPoint>();
+    IEnumerable<CalibrationPoint> ITrackerService.CalibrationPoints => CalibrationPoints;
 
     public FakeService()
     {
@@ -65,6 +62,16 @@ namespace MagitekStratagemPlugin
     {
       LastCursorPos = ImGui.GetMousePos();
       DisplaySize = ImGui.GetIO().DisplaySize;
+    }
+
+    public void AddCalibrationPoint(float x, float y)
+    {
+      CalibrationPoints.Add(new CalibrationPoint(x, y, x, y));
+    }
+
+    public void ClearCalibrationPoints()
+    {
+      CalibrationPoints.Clear();
     }
   }
 }

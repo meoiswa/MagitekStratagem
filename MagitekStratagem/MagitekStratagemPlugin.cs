@@ -1,19 +1,13 @@
 ﻿using System;
 using System.IO;
-using Dalamud.Game;
-using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.Command;
-using Dalamud.Game.Gui;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
-using Dalamud.Logging;
 using Dalamud.Plugin;
 using Newtonsoft.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using GameObjectStruct = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 using TargetSystemStruct = FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem;
-using FrameworkStruct = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework;
 using System.Numerics;
 using ImGuiNET;
 using System.Runtime.InteropServices;
@@ -21,13 +15,13 @@ using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using System.Linq;
 using System.Collections.Generic;
-using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Dalamud.Plugin.Services;
 using System.Text.RegularExpressions;
+using Dalamud.Utility.Signatures;
 
 namespace MagitekStratagemPlugin
 {
-  public sealed class MagitekStratagemPlugin : IDalamudPlugin
+  public sealed unsafe class MagitekStratagemPlugin : IDalamudPlugin
   {
     public string Name => "Magitek Stratagem";
 
@@ -50,34 +44,42 @@ namespace MagitekStratagemPlugin
     public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
 
-    public delegate void HighlightGameObjectWithColorDelegate(IntPtr gameObject, byte color);
+
+    [Signature("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF")]
+    private readonly delegate* unmanaged<IntPtr, byte, void> HighlightGameObjectWithColor = null;
+
+
+    [Signature("E8 ?? ?? ?? ?? 3C 01 74 38")]
+    private readonly delegate* unmanaged<InputManager*, int, bool> IsInputClicked = null;
+
+
     private delegate IntPtr SelectInitialTabTargetDelegate(IntPtr targetSystem, IntPtr gameObjects, IntPtr camera, IntPtr a4);
-    private delegate IntPtr SelectTabTargetDelegate(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects, bool inverse, IntPtr a5);
-    private readonly HighlightGameObjectWithColorDelegate? highlightGameObjectWithColor = null;
-    private readonly Hook<SelectTabTargetDelegate>? selectTabTargetIgnoreDepthHook = null;
-    private readonly Hook<SelectTabTargetDelegate>? selectTabTargetConeHook = null;
+
+    [Signature("E8 ?? ?? ?? ?? EB 37 48 85 C9", DetourName = nameof(SelectInitialTabTargetDetour))]
     private readonly Hook<SelectInitialTabTargetDelegate>? selectInitialTabTargetHook = null;
+
+
+    private delegate IntPtr SelectTabTargetDelegate(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects, bool inverse, IntPtr a5);
+
+    [Signature("E8 ?? ?? ?? ?? EB 4C 41 B1 01", DetourName = nameof(SelectTabTargetConeDetour))]
+    private readonly Hook<SelectTabTargetDelegate>? selectTabTargetConeHook = null;
+
+    [Signature("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 27 48 8B 00", DetourName = nameof(SelectTabTargetIgnoreDepthDetour))]
+    private readonly Hook<SelectTabTargetDelegate>? selectTabTargetIgnoreDepthHook = null;
+
 
     public readonly Dictionary<IntPtr, float> gameObjectHeatMap = new();
 
-    private unsafe bool IsCircleTargetKeyboardInput()
+    private unsafe bool IsCircleTargetInput()
     {
-      var inputData = *(UIInputData*)FrameworkStruct.Instance()->UIModule->GetUIInputData();
-      // TODO: Find out if we are pressing the cursor left/right keybind.
-      return false;
-    }
-
-    private unsafe bool IsCircleTargetGamepadInput()
-    {
-      var inputData = *(UIInputData*)FrameworkStruct.Instance()->UIModule->GetUIInputData();
-      return (inputData.GamepadButtons & GamepadButtonsFlags.DPadRight) == GamepadButtonsFlags.DPadRight
-                || (inputData.GamepadButtons & GamepadButtonsFlags.DPadLeft) == GamepadButtonsFlags.DPadLeft;
+      var manager = (InputManager*)Service.SigScanner.GetStaticAddressFromSig("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 0F 28 F0 45 0F 57 C0");
+      return IsInputClicked(manager, 18) || IsInputClicked(manager, 19);
     }
 
     private bool NeedsOverwrite()
     {
       bool isEnemyTarget;
-      if (IsCircleTargetGamepadInput() || IsCircleTargetKeyboardInput())
+      if (IsCircleTargetInput())
       {
         isEnemyTarget = false;
       }
@@ -248,55 +250,38 @@ namespace MagitekStratagemPlugin
         Service.PluginLog.Error(ex.Message);
       }
 
-      // Sig courtesy of Wintermute
-      if (Service.SigScanner.TryScanText("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF", out var highlightGameObjectSigAddr))
-      {
-        Service.PluginLog.Debug("Found SIG for HighlightGameObjectWithColor", highlightGameObjectSigAddr.ToString("X"));
-        highlightGameObjectWithColor = Marshal.GetDelegateForFunctionPointer<HighlightGameObjectWithColorDelegate>(highlightGameObjectSigAddr);
-      }
-      else
-      {
-        Service.PluginLog.Debug("Failed to adquire SIG for HighlightGameObjectWithColor");
-        ErrorHooking = true;
-      }
+      Service.IGameInterop.InitializeFromAttributes(this);
 
-      // Sig courtesy of Avaflow
-      if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 27 48 8B 00", out var selectTabTargetIgnoreDepthAddr))
+      if (selectInitialTabTargetHook != null)
       {
-        Service.PluginLog.Debug("Found SIG for SelectTabTargetIgnoreDepth", selectTabTargetIgnoreDepthAddr.ToString("X"));
-
-        selectTabTargetIgnoreDepthHook = Service.IGameInterop.HookFromAddress(selectTabTargetIgnoreDepthAddr, new SelectTabTargetDelegate(SelectTabTargetIgnoreDepthDetour));
-        selectTabTargetIgnoreDepthHook.Enable();
-      }
-      else
-      {
-        Service.PluginLog.Debug("Failed to adquire SIG for SelectTabTargetIgnoreDepth");
-        ErrorHooking = true;
-      }
-
-      // Sig courtesy of Avaflow
-      if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? EB 4C 41 B1 01", out var selectTabTargetConeAddr))
-      {
-        Service.PluginLog.Debug("Found SIG for SelectTabTargetCone", selectTabTargetConeAddr.ToString("X"));
-        selectTabTargetConeHook = Service.IGameInterop.HookFromAddress(selectTabTargetConeAddr, new SelectTabTargetDelegate(SelectTabTargetConeDetour));
-        selectTabTargetConeHook.Enable();
-      }
-      else
-      {
-        Service.PluginLog.Debug("Failed to adquire SIG for SelectTabTargetCone");
-        ErrorHooking = true;
-      }
-
-      // Sig courtesy of Avaflow
-      if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? EB 37 48 85 C9", out var selectInitialTabTargetSigAddr))
-      {
-        Service.PluginLog.Debug("Found SIG for SelectInitialTabTarget", selectInitialTabTargetSigAddr.ToString("X"));
-        selectInitialTabTargetHook = Service.IGameInterop.HookFromAddress(selectInitialTabTargetSigAddr, new SelectInitialTabTargetDelegate(SelectInitialTabTargetDetour));
+        Service.PluginLog.Verbose("Successfully Hooked SelectInitialTabTarget");
         selectInitialTabTargetHook.Enable();
       }
       else
       {
-        Service.PluginLog.Debug("Failed to adquire SIG for SelectInitialTabTarget");
+        Service.PluginLog.Error("Failed to hook SelectInitialTabTarget");
+        ErrorHooking = true;
+      }
+
+      if (selectTabTargetConeHook != null)
+      {
+        Service.PluginLog.Verbose("Successfully Hooked SelectTabTargetCone");
+        selectTabTargetConeHook.Enable();
+      }
+      else
+      {
+        Service.PluginLog.Error("Failed to hook SelectTabTargetCone");
+        ErrorHooking = true;
+      }
+
+      if (selectTabTargetIgnoreDepthHook != null)
+      {
+        Service.PluginLog.Verbose("Successfully Hooked SelectTabTargetIgnoreDepth");
+        selectTabTargetIgnoreDepthHook.Enable();
+      }
+      else
+      {
+        Service.PluginLog.Error("Failed to hook SelectTabTargetIgnoreDepth");
         ErrorHooking = true;
       }
 
@@ -309,12 +294,12 @@ namespace MagitekStratagemPlugin
     {
       unsafe
       {
-        if (lastHighlightGameObjectId.HasValue && highlightGameObjectWithColor != null)
+        if (lastHighlightGameObjectId.HasValue && HighlightGameObjectWithColor != null)
         {
           var obj = FindGameObject(lastHighlightGameObjectId.Value);
           if (obj != null)
           {
-            highlightGameObjectWithColor(obj.Address, 0);
+            HighlightGameObjectWithColor(obj.Address, 0);
           }
           lastHighlightGameObjectId = null;
         }
@@ -442,14 +427,18 @@ namespace MagitekStratagemPlugin
 
     public void OnUpdate(IFramework framework)
     {
-      if (selectTabTargetConeHook == null || selectTabTargetIgnoreDepthHook == null || selectInitialTabTargetHook == null || highlightGameObjectWithColor == null)
+      if (ErrorHooking)
+      {
+        return;
+      }
+
+      if (selectTabTargetConeHook == null || selectTabTargetIgnoreDepthHook == null || selectInitialTabTargetHook == null || HighlightGameObjectWithColor == null)
       {
         ErrorHooking = true;
         return;
       }
 
       var player = Service.ClientState.LocalPlayer;
-      var position = player?.Position ?? new Vector3();
 
       GameObject? lastHighlight = null;
       if (lastHighlightGameObjectId.HasValue)
@@ -562,16 +551,16 @@ namespace MagitekStratagemPlugin
             {
               if (lastHighlight != null && lastHighlight.ObjectId != ClosestMatch.ObjectId)
               {
-                highlightGameObjectWithColor(lastHighlight.Address, 0);
+                HighlightGameObjectWithColor(lastHighlight.Address, 0);
                 lastHighlightGameObjectId = null;
               }
 
-              highlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
+              HighlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
               lastHighlightGameObjectId = ClosestMatch.ObjectId;
             }
             else if (ClosestMatch == null && lastHighlight != null)
             {
-              highlightGameObjectWithColor(lastHighlight.Address, 0);
+              HighlightGameObjectWithColor(lastHighlight.Address, 0);
               lastHighlightGameObjectId = null;
             }
           }
@@ -583,7 +572,7 @@ namespace MagitekStratagemPlugin
         {
           if (lastHighlight != null)
           {
-            highlightGameObjectWithColor(lastHighlight.Address, 0);
+            HighlightGameObjectWithColor(lastHighlight.Address, 0);
             lastHighlightGameObjectId = null;
           }
         }

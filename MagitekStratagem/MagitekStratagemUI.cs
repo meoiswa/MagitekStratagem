@@ -5,9 +5,9 @@ using System.Numerics;
 
 namespace MagitekStratagemPlugin
 {
-    // It is good to have this be disposable in general, in case you ever need it
-    // to do any cleanup
-    public unsafe class MagitekStratagemUI : Window, IDisposable
+  // It is good to have this be disposable in general, in case you ever need it
+  // to do any cleanup
+  public unsafe class MagitekStratagemUI : Window, IDisposable
   {
     private readonly MagitekStratagemPlugin plugin;
 
@@ -55,8 +55,8 @@ namespace MagitekStratagemPlugin
     {
       ImGui.NewLine();
       ImGui.TextWrapped("Disclaimer: This plugin is not officially supported by Tobii. Use at your own risk."
-        +" Due to the nature of hot-loading Tobii SDK DLLs, this plugin may crash your game unexpectedly. "
-        +" You must have Tobii Game Hub installed, and use a Tobii Eye Tracker that is compatible (4 or 5)");
+        + " Due to the nature of hot-loading Tobii SDK DLLs, this plugin may crash your game unexpectedly. "
+        + " You must have Tobii Game Hub installed, and use a Tobii Eye Tracker that is compatible (4 or 5)");
       ImGui.NewLine();
       ImGui.TextWrapped("In compliance with Tobii guidelines, this plugin will not record nor share Eye Tracking data with any other software component, and Eye Tracking data is immediately disposed after use.");
       ImGui.NewLine();
@@ -321,6 +321,27 @@ namespace MagitekStratagemPlugin
       }
       ImGui.SameLine();
       ImGui.Text("(Start tracking on game start)");
+
+      ImGui.Separator();
+
+      if (!plugin.Configuration.IsCalibrationEditMode)
+      {
+        if (ImGui.Button("Enter Calibration Mode"))
+        {
+          plugin.Configuration.IsCalibrationEditMode = true;
+          plugin.Configuration.Save();
+        }
+
+        if (ImGui.Button("Clear Calibration"))
+        {
+          plugin.TrackerService.ClearCalibrationPoints();
+        }
+      }
+      else
+      {
+        ImGui.Text("(Right click to exit Calibration Mode)");
+      }
+
 
 #if DEBUG
       ImGui.Separator();
