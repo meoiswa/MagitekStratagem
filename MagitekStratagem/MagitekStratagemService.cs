@@ -14,15 +14,19 @@ namespace MagitekStratagemPlugin
       X = x;
       Y = y;
     }
+
+    internal Point()
+    {
+    }
   }
 
   public sealed class CalibrationPoint
   {
-    public Point Reference { get; private set; }
+    public Point? Reference { get; set; }
 
-    public Point Gaze { get; private set; }
+    public Point? Gaze { get; set; }
 
-    public Point Delta { get; private set; }
+    public Point? Delta { get; set; }
 
     public CalibrationPoint(float rx, float ry, float gx, float gy)
     {
@@ -36,6 +40,9 @@ namespace MagitekStratagemPlugin
       Reference = reference;
       Gaze = gaze;
       Delta = new Point(gaze.X - reference.X, gaze.Y - reference.Y);
+    }
+    internal CalibrationPoint()
+    {
     }
   }
 
@@ -57,14 +64,15 @@ namespace MagitekStratagemPlugin
     public Transformation ExtendedTransform { get; private set; }
 
     public List<CalibrationPoint> CalibrationPoints { get; private set; }
-    IEnumerable<CalibrationPoint> ITrackerService.CalibrationPoints => CalibrationPoints;
 
-    public TobiiService()
+    public bool UseCalibration { get; set; }
+
+    public TobiiService(List<CalibrationPoint> calibrationPoints)
     {
       TobiiGameIntegrationApi.SetApplicationName("FFXIV Magitek Stratagem");
       TobiiGameIntegrationApi.IsApiInitialized();
       TobiiGameIntegrationApi.UpdateTrackerInfos();
-      CalibrationPoints = new List<CalibrationPoint>();
+      CalibrationPoints = calibrationPoints;
     }
 
     public List<TrackerInfo> GetTrackerInfos()
@@ -108,7 +116,7 @@ namespace MagitekStratagemPlugin
         LastRawGazeX = gazePoint.X;
         LastRawGazeY = gazePoint.Y;
 
-        if (CalibrationPoints.Count > 0)
+        if (CalibrationPoints?.Count > 0)
         {
           var calibratedGazePoint = ApplyCalibrationPoints(gazePoint.X, gazePoint.Y);
           LastGazeX = calibratedGazePoint.X;
@@ -119,7 +127,7 @@ namespace MagitekStratagemPlugin
           LastGazeX = gazePoint.X;
           LastGazeY = gazePoint.Y;
         }
-        
+
         LastGazeTimeStamp = gazePoint.TimeStampMicroSeconds;
       }
 
@@ -148,12 +156,7 @@ namespace MagitekStratagemPlugin
     public void AddCalibrationPoint(float x, float y)
     {
       var calibrationPoint = new CalibrationPoint(x, y, LastRawGazeX, LastRawGazeY);
-      CalibrationPoints.Add(calibrationPoint);
-    }
-
-    public void ClearCalibrationPoints()
-    {
-      CalibrationPoints.Clear();
+      CalibrationPoints?.Add(calibrationPoint);
     }
 
     private Point ApplyCalibrationPoints(float gazeX, float gazeY)
@@ -162,22 +165,30 @@ namespace MagitekStratagemPlugin
       // The farther the gaze point is from the calibration point, the less it will be affected.
 
       var gazePoint = new Point(gazeX, gazeY);
-      var totalWeight = 0d;
-      var totalDeltaX = 0d;
-      var totalDeltaY = 0d;
 
-      foreach (var calibrationPoint in CalibrationPoints)
+      if (CalibrationPoints != null && UseCalibration)
       {
-        var distance = Math.Pow(Math.Pow(gazePoint.X - calibrationPoint.Reference.X, 2) + Math.Pow(gazePoint.Y - calibrationPoint.Reference.Y, 2), 0.5);
-        var weight = 1 / (1 + distance);
+        var totalWeight = 0d;
+        var totalDeltaX = 0d;
+        var totalDeltaY = 0d;
+        foreach (var calibrationPoint in CalibrationPoints)
+        {
+          if (calibrationPoint.Reference == null || calibrationPoint.Gaze == null || calibrationPoint.Delta == null)
+          {
+            continue;
+          }
 
-        totalWeight += weight;
-        totalDeltaX -= calibrationPoint.Delta.X * weight;
-        totalDeltaY -= calibrationPoint.Delta.Y * weight;
+          var distance = Math.Pow(Math.Pow(gazePoint.X - calibrationPoint.Reference.X, 2) + Math.Pow(gazePoint.Y - calibrationPoint.Reference.Y, 2), 0.5);
+          var weight = 1 / (1 + distance);
+
+          totalWeight += weight;
+          totalDeltaX -= calibrationPoint.Delta.X * weight;
+          totalDeltaY -= calibrationPoint.Delta.Y * weight;
+        }
+
+        gazePoint.X += (float)(totalDeltaX / totalWeight);
+        gazePoint.Y += (float)(totalDeltaY / totalWeight);
       }
-
-      gazePoint.X += (float)(totalDeltaX / totalWeight);
-      gazePoint.Y += (float)(totalDeltaY / totalWeight);
 
       return gazePoint;
     }

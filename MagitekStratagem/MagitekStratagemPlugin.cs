@@ -43,7 +43,7 @@ namespace MagitekStratagemPlugin
     public GameObject? ClosestMatch { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
-
+    public bool IsCalibrationEditMode { get; set; }
 
     [Signature("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF")]
     private readonly delegate* unmanaged<IntPtr, byte, void> HighlightGameObjectWithColor = null;
@@ -243,7 +243,7 @@ namespace MagitekStratagemPlugin
 
       try
       {
-        TrackerService = new TobiiService();
+        TrackerService = new TobiiService(Configuration.CalibrationPoints);
       }
       catch (Exception ex)
       {

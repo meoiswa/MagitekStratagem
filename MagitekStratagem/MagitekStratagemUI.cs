@@ -12,19 +12,19 @@ namespace MagitekStratagemPlugin
     private readonly MagitekStratagemPlugin plugin;
 
     public MagitekStratagemUI(MagitekStratagemPlugin plugin)
-      : base(
-        "MagitekStratagem##ConfigWindow",
-        ImGuiWindowFlags.AlwaysAutoResize
-        | ImGuiWindowFlags.NoResize
-        | ImGuiWindowFlags.NoCollapse
-      )
+  : base(
+    "MagitekStratagem##ConfigWindow",
+    ImGuiWindowFlags.AlwaysAutoResize
+    | ImGuiWindowFlags.NoResize
+    | ImGuiWindowFlags.NoCollapse
+  )
     {
       this.plugin = plugin;
 
       SizeConstraints = new WindowSizeConstraints()
       {
-        MinimumSize = new Vector2(468, 0),
-        MaximumSize = new Vector2(468, 1000)
+        MinimumSize = new Vector2(600, 0),
+        MaximumSize = new Vector2(800, 1000)
       };
     }
 
@@ -74,7 +74,7 @@ namespace MagitekStratagemPlugin
         ImGui.Text("Tobii GameHub Not Found");
         if (ImGui.Button("Load Fake Service"))
         {
-          plugin.TrackerService = new FakeService();
+          plugin.TrackerService = new FakeService(plugin.Configuration.CalibrationPoints);
         }
         return;
       }
@@ -291,6 +291,56 @@ namespace MagitekStratagemPlugin
         ImGui.Unindent();
       }
 
+      if (ImGui.CollapsingHeader("Calibration"))
+      {
+        ImGui.Indent();
+        ImGui.Text("Fine-tuning calibration beyond what your vendor provides.");
+
+        var useCalibration = plugin.Configuration.UseCalibration;
+        if (ImGui.Checkbox("Use Calibration", ref useCalibration))
+        {
+          plugin.Configuration.UseCalibration = useCalibration;
+          plugin.TrackerService!.UseCalibration = useCalibration;
+          plugin.Configuration.Save(); 
+        }
+
+        ImGui.NewLine();
+
+        if (!plugin.IsCalibrationEditMode)
+        {
+          if (ImGui.Button("Enter Calibration Mode"))
+          {
+            plugin.IsCalibrationEditMode = true;
+          }
+
+          if (ImGui.Button("Clear Calibration"))
+          {
+            plugin.Configuration.CalibrationPoints.Clear();
+            plugin.Configuration.Save();
+          }
+        }
+        else
+        {
+          ImGui.Text("(Right click to exit Calibration Mode)");
+        }
+
+        ImGui.NewLine();
+        if (ImGui.CollapsingHeader("About Calibration"))
+        {
+          ImGui.Indent();
+          ImGui.TextWrapped("Allows you to fine-tune the calibration of your eye tracker."
+           + "\nCalibration points are created on your cursor position,"
+           + "\nLook directly at the tip of the cursor, then left-click to create a point."
+           + "\nEach calibration point stores the offset between the cursor and your gaze."
+           + "\nThe closer your gaze is to a calibration point, the more it affects the result."
+           + "\nFor best results, add calibration points close to the edges of the screen."
+           + "\nA calibration point near the center might be useful as well.");
+          ImGui.Unindent();
+        }
+
+        ImGui.Unindent();
+      }
+
       ImGui.Separator();
 
       if (plugin.Configuration.Enabled)
@@ -321,27 +371,6 @@ namespace MagitekStratagemPlugin
       }
       ImGui.SameLine();
       ImGui.Text("(Start tracking on game start)");
-
-      ImGui.Separator();
-
-      if (!plugin.Configuration.IsCalibrationEditMode)
-      {
-        if (ImGui.Button("Enter Calibration Mode"))
-        {
-          plugin.Configuration.IsCalibrationEditMode = true;
-          plugin.Configuration.Save();
-        }
-
-        if (ImGui.Button("Clear Calibration"))
-        {
-          plugin.TrackerService.ClearCalibrationPoints();
-        }
-      }
-      else
-      {
-        ImGui.Text("(Right click to exit Calibration Mode)");
-      }
-
 
 #if DEBUG
       ImGui.Separator();

@@ -1,6 +1,7 @@
 using Dalamud.Configuration;
 using Dalamud.Plugin;
 using System;
+using System.Collections.Generic;
 
 namespace MagitekStratagemPlugin
 {
@@ -33,7 +34,8 @@ namespace MagitekStratagemPlugin
     public bool OverrideSoftTarget { get; set; } = true;
     public bool OverrideSoftTargetAlways { get; set; } = false;
 
-    public bool IsCalibrationEditMode { get; set; } = false;
+    public bool UseCalibration { get; set; } = false;
+    public List<CalibrationPoint> CalibrationPoints { get; set; } = new List<CalibrationPoint>();
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]

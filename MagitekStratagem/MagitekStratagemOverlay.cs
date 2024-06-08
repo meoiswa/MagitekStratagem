@@ -45,7 +45,7 @@ namespace MagitekStratagemPlugin
       var black = ImGui.GetColorU32(new Vector4(0, 0, 0, 1));
       var red = ImGui.GetColorU32(new Vector4(1, 0, 0, 1));
       var blue = ImGui.GetColorU32(new Vector4(0, 0, 1, 1));
-      var green = ImGui.GetColorU32(new Vector4(0, 1, 0, 1));
+      var yellow = ImGui.GetColorU32(new Vector4(1, 1, 0, 1));
 
       const float whiteThick = 3f;
       const float blackThick = 1.5f;
@@ -61,17 +61,20 @@ namespace MagitekStratagemPlugin
 
       var dl = ImGui.GetWindowDrawList();
 
-      if (plugin.Configuration.IsVisible)
+      if (plugin.Configuration.IsVisible && plugin.TrackerService!.CalibrationPoints != null)
       {
         foreach (var calibrationPoint in plugin.TrackerService!.CalibrationPoints)
         {
-          DrawPoint(calibrationPoint.Reference, dl, red);
-          DrawPoint(calibrationPoint.Gaze, dl, blue);
+          if (calibrationPoint.Reference != null && calibrationPoint.Gaze != null)
+          {
+            DrawPoint(calibrationPoint.Reference, dl, red);
+            DrawPoint(calibrationPoint.Gaze, dl, blue);
+          }
         }
 
         dl.AddCircle(rawCoord, plugin.Configuration.GazeCircleRadius + blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
         dl.AddCircle(rawCoord, plugin.Configuration.GazeCircleRadius - blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
-        dl.AddCircle(rawCoord, plugin.Configuration.GazeCircleRadius, green, plugin.Configuration.GazeCircleSegments, whiteThick);
+        dl.AddCircle(rawCoord, plugin.Configuration.GazeCircleRadius, yellow, plugin.Configuration.GazeCircleSegments, whiteThick);
       }
 
 
@@ -118,8 +121,9 @@ namespace MagitekStratagemPlugin
         return;
       }
 
-      if (plugin.Configuration.IsCalibrationEditMode)
+      if (plugin.IsCalibrationEditMode)
       {
+        ImGui.SetWindowFocus();
         Flags &= ~ImGuiWindowFlags.NoInputs;
 
         if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
@@ -132,7 +136,7 @@ namespace MagitekStratagemPlugin
         }
         else if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
         {
-          plugin.Configuration.IsCalibrationEditMode = false;
+          plugin.IsCalibrationEditMode = false;
         }
       }
       else

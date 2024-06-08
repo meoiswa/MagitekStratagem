@@ -11,15 +11,13 @@ namespace MagitekStratagemPlugin
     float LastGazeY { get; }
     float LastRawGazeX { get; }
     float LastRawGazeY { get; }
-    IEnumerable<CalibrationPoint> CalibrationPoints { get; }
+    List<CalibrationPoint> CalibrationPoints { get; }
+    bool UseCalibration { get; set; }
     void StartTrackingWindow(nint windowHandle);
     void StopTracking();
     void Update();
     void Shutdown();
-
     void AddCalibrationPoint(float x, float y);
-    void ClearCalibrationPoints();
-
     virtual void Draw() { }
   }
 }

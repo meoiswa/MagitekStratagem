@@ -15,14 +15,16 @@ namespace MagitekStratagemPlugin
     public float LastRawGazeY { get => LastGazeY; }
     public Vector2 LastCursorPos { get; private set; } = Vector2.Zero;
     public Vector2 DisplaySize { get; private set; } = Vector2.Zero;
-    public List<CalibrationPoint> CalibrationPoints { get; private set; } = new List<CalibrationPoint>();
-    IEnumerable<CalibrationPoint> ITrackerService.CalibrationPoints => CalibrationPoints;
+    public List<CalibrationPoint> CalibrationPoints { get; private set; }
 
-    public FakeService()
+    public bool UseCalibration { get; set; }
+
+    public FakeService(List<CalibrationPoint> calibrationPoints)
     {
       LastGazeX = 0f;
       LastGazeY = 0f;
       LastGazeTimeStamp = DateTime.Now.Ticks;
+      CalibrationPoints = calibrationPoints;
     }
 
     public void StartTrackingWindow(nint windowHandle)
@@ -66,12 +68,7 @@ namespace MagitekStratagemPlugin
 
     public void AddCalibrationPoint(float x, float y)
     {
-      CalibrationPoints.Add(new CalibrationPoint(x, y, x, y));
-    }
-
-    public void ClearCalibrationPoints()
-    {
-      CalibrationPoints.Clear();
+      CalibrationPoints?.Add(new CalibrationPoint(x, y, x, y));
     }
   }
 }
