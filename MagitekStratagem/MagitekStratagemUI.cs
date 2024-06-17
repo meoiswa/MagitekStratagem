@@ -1,3 +1,4 @@
+using Dalamud.Game.Config;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
 using System;
@@ -291,7 +292,8 @@ namespace MagitekStratagemPlugin
         ImGui.Unindent();
       }
 
-      if (ImGui.CollapsingHeader("Calibration"))
+      ImGui.BeginDisabled(Service.IGameConfig.TryGet(SystemConfigOption.ScreenMode, out uint mode) && mode == 0);
+      if (ImGui.CollapsingHeader("Calibration (Not available in Windowed Mode)"))
       {
         ImGui.Indent();
         ImGui.Text("Fine-tuning calibration beyond what your vendor provides.");
@@ -300,8 +302,7 @@ namespace MagitekStratagemPlugin
         if (ImGui.Checkbox("Use Calibration", ref useCalibration))
         {
           plugin.Configuration.UseCalibration = useCalibration;
-          plugin.TrackerService!.UseCalibration = useCalibration;
-          plugin.Configuration.Save(); 
+          plugin.Configuration.Save();
         }
 
         ImGui.NewLine();
@@ -340,6 +341,7 @@ namespace MagitekStratagemPlugin
 
         ImGui.Unindent();
       }
+      ImGui.EndDisabled();
 
       ImGui.Separator();
 

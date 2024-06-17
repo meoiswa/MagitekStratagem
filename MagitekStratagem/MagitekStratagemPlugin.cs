@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using Dalamud.Plugin.Services;
 using System.Text.RegularExpressions;
 using Dalamud.Utility.Signatures;
+using Dalamud.Game.Config;
 
 namespace MagitekStratagemPlugin
 {
@@ -438,6 +439,8 @@ namespace MagitekStratagemPlugin
         return;
       }
 
+
+
       var player = Service.ClientState.LocalPlayer;
 
       GameObject? lastHighlight = null;
@@ -458,6 +461,17 @@ namespace MagitekStratagemPlugin
           }
           return;
         }
+
+        var couldReadConfig = Service.IGameConfig.TryGet(SystemConfigOption.ScreenMode, out uint mode);
+        if (!couldReadConfig || mode == 0)
+        {
+          TrackerService.UseCalibration = false;
+        }
+        else if (couldReadConfig && mode != 0)
+        {
+          TrackerService.UseCalibration = Configuration.UseCalibration;
+        }
+
 
         TrackerService.Update();
 

@@ -15,6 +15,7 @@ namespace MagitekStratagemPlugin
       : base(
         "MagitekStratagem##Overlay",
         ImGuiWindowFlags.AlwaysAutoResize
+        | ImGuiWindowFlags.NoMove
         | ImGuiWindowFlags.NoResize
         | ImGuiWindowFlags.NoCollapse
         | ImGuiWindowFlags.NoDecoration
@@ -28,6 +29,8 @@ namespace MagitekStratagemPlugin
     {
       this.plugin = plugin;
       this.SizeCondition = ImGuiCond.Always;
+
+      ForceMainWindow = true;
     }
 
     public void Dispose()
@@ -37,9 +40,9 @@ namespace MagitekStratagemPlugin
 
     public void DrawBubbles(float gx, float gy, float rx, float ry)
     {
-      var size = ImGui.GetIO().DisplaySize;
-      var gazeCoord = new Vector2(gx * (size.X / 2) + (size.X / 2), -gy * (size.Y / 2) + (size.Y / 2));
-      var rawCoord = new Vector2(rx * (size.X / 2) + (size.X / 2), -ry * (size.Y / 2) + (size.Y / 2));
+      var size = ImGui.GetMainViewport().Size;
+      var gazeCoord = new Vector2(gx * (size.X / 2) + (size.X / 2), -gy * (size.Y / 2) + (size.Y / 2)) + ImGui.GetMainViewport().Pos;
+      var rawCoord = new Vector2(rx * (size.X / 2) + (size.X / 2), -ry * (size.Y / 2) + (size.Y / 2)) + ImGui.GetMainViewport().Pos;
 
       var white = ImGui.GetColorU32(new Vector4(1, 1, 1, 1));
       var black = ImGui.GetColorU32(new Vector4(0, 0, 0, 1));
@@ -49,15 +52,6 @@ namespace MagitekStratagemPlugin
 
       const float whiteThick = 3f;
       const float blackThick = 1.5f;
-
-      ImGui.SetNextWindowSize(size);
-      ImGui.SetNextWindowViewport(ImGui.GetMainViewport().ID);
-      ImGui.SetNextWindowPos(Vector2.Zero);
-      const ImGuiWindowFlags flags = ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar |
-                                     ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoDecoration |
-                                     ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoBackground |
-                                     ImGuiWindowFlags.NoInputs;
-      ImGui.Begin("Crosshair Window", flags);
 
       var dl = ImGui.GetWindowDrawList();
 
@@ -81,8 +75,6 @@ namespace MagitekStratagemPlugin
       dl.AddCircle(gazeCoord, plugin.Configuration.GazeCircleRadius + blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
       dl.AddCircle(gazeCoord, plugin.Configuration.GazeCircleRadius - blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
       dl.AddCircle(gazeCoord, plugin.Configuration.GazeCircleRadius, white, plugin.Configuration.GazeCircleSegments, whiteThick);
-
-      ImGui.End();
     }
 
     public void DrawPoint(Point point, ImDrawListPtr dl, uint color)
@@ -111,7 +103,7 @@ namespace MagitekStratagemPlugin
 
       // Resize overlay to full screen
       Size = ImGui.GetMainViewport().Size;
-      Position = ImGui.GetMainViewport().Pos;
+      Position = Vector2.Zero;
     }
 
     public override void Draw()

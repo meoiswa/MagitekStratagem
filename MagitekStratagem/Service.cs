@@ -19,6 +19,7 @@ namespace MagitekStratagemPlugin
     [PluginService] public static ITargetManager Targetmanager { get; private set; }
     [PluginService] public static ITargetManager TargetManager { get; private set; }
     [PluginService] public static IGameInteropProvider IGameInterop { get; private set; }
+    [PluginService] public static IGameConfig IGameConfig { get; private set; }
 #pragma warning restore CS8618
   }
 }
