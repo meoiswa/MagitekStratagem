@@ -7,7 +7,6 @@ using Dalamud.Plugin;
 using Newtonsoft.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using GameObjectStruct = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
-using TargetSystemStruct = FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem;
 using System.Numerics;
 using ImGuiNET;
 using System.Runtime.InteropServices;
@@ -19,6 +18,7 @@ using Dalamud.Plugin.Services;
 using System.Text.RegularExpressions;
 using Dalamud.Utility.Signatures;
 using Dalamud.Game.Config;
+using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace MagitekStratagemPlugin
 {
@@ -378,24 +378,6 @@ namespace MagitekStratagemPlugin
       return null;
     }
 
-    private unsafe GameObjectStruct* GetMouseOverObject(int x, int y)
-    {
-      var ObjectFilterArray1Ptr = (GameObjectArray*)((IntPtr)TargetSystem.Instance() + 0x1a98);
-      var ObjectFilterArray1 = *ObjectFilterArray1Ptr;
-      var camera = Control.Instance()->CameraManager.Camera;
-      var localPlayer = Control.Instance()->LocalPlayer;
-      if (!Service.Condition.Any() || camera == null || localPlayer == null || ObjectFilterArray1.Length <= 0)
-        return null;
-      if (TargetSystem.Instance() != null && TargetSystem.Instance() != default(TargetSystemStruct*))
-      {
-        return TargetSystem.Instance()->GetMouseOverObject(x, y, ObjectFilterArray1Ptr, camera);
-      }
-      else
-      {
-        return null;
-      }
-    }
-
     private IntPtr? FindMaxHeat()
     {
       if (gameObjectHeatMap.Keys.Count > 1)
@@ -438,8 +420,6 @@ namespace MagitekStratagemPlugin
         ErrorHooking = true;
         return;
       }
-
-
 
       var player = Service.ClientState.LocalPlayer;
 
@@ -515,7 +495,9 @@ namespace MagitekStratagemPlugin
               }
             }
 
-            if (Configuration.UseRaycast)
+            // Prevents crashing the frame the character loads in, courtesy of Hasselnussbomber
+            var isFading = RaptureAtkUnitManager.Instance()->IsUiFading;
+            if (Configuration.UseRaycast && !isFading)
             {
               for (var i = 0; i < Configuration.GazeCircleSegments + 1; i++)
               {
@@ -533,7 +515,8 @@ namespace MagitekStratagemPlugin
                   rayPosX = (int)(gazeScreenPos.X + (randomFloat * Configuration.GazeCircleRadius * Math.Cos(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
                   rayPosY = (int)(gazeScreenPos.Y + (randomFloat * Configuration.GazeCircleRadius * Math.Sin(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
                 }
-                var rayHit = GetMouseOverObject(rayPosX, rayPosY);
+                
+                var rayHit = TargetSystem.Instance()->GetMouseOverObject(rayPosX, rayPosY);
                 if (rayHit != null)
                 {
                   if (gameObjectHeatMap.ContainsKey((IntPtr)rayHit))
