@@ -29,19 +29,19 @@ namespace MagitekStratagemPlugin
     private const string commandName = "/magiteks";
     private const string overlayCommandName = "/magiteksoverlay";
 
-    private unsafe uint? lastHighlightGameObjectId = null;
+    private unsafe uint? lastHighlightEntityId = null;
 
     private bool autoStarted;
 
-    public DalamudPluginInterface PluginInterface { get; init; }
+    public IDalamudPluginInterface PluginInterface { get; init; }
     public ICommandManager CommandManager { get; init; }
     public Configuration Configuration { get; init; }
     public WindowSystem WindowSystem { get; init; }
     public Random Random { get; }
     public MagitekStratagemUI Window { get; init; }
     public MagitekStratagemOverlay Overlay { get; init; }
-    public ITrackerService? TrackerService { get; set; }
-    public GameObject? ClosestMatch { get; private set; }
+    public ITrackerService TrackerService { get; set; }
+    public IGameObject? ClosestMatch { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
     public bool IsCalibrationEditMode { get; set; }
@@ -50,32 +50,33 @@ namespace MagitekStratagemPlugin
     private readonly delegate* unmanaged<IntPtr, byte, void> HighlightGameObjectWithColor = null;
 
 
-    [Signature("E8 ?? ?? ?? ?? 3C 01 74 38")]
-    private readonly delegate* unmanaged<InputManager*, int, bool> IsInputClicked = null;
+    [Signature("E8 ?? ?? ?? ?? 84 C0 44 8B C3")]
+    private readonly delegate* unmanaged<InputManager*, int, bool> IsInputPressed = null;
 
 
     private delegate IntPtr SelectInitialTabTargetDelegate(IntPtr targetSystem, IntPtr gameObjects, IntPtr camera, IntPtr a4);
 
-    [Signature("E8 ?? ?? ?? ?? EB 37 48 85 C9", DetourName = nameof(SelectInitialTabTargetDetour))]
+    [Signature("E8 ?? ?? ?? ?? EB 16 44 0F B6 CD", DetourName = nameof(SelectInitialTabTargetDetour))]
     private readonly Hook<SelectInitialTabTargetDelegate>? selectInitialTabTargetHook = null;
 
 
     private delegate IntPtr SelectTabTargetDelegate(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects, bool inverse, IntPtr a5);
 
-    [Signature("E8 ?? ?? ?? ?? EB 4C 41 B1 01", DetourName = nameof(SelectTabTargetConeDetour))]
+    [Signature("E8 ?? ?? ?? ?? EB 47 41 B1 01", DetourName = nameof(SelectTabTargetConeDetour))]
     private readonly Hook<SelectTabTargetDelegate>? selectTabTargetConeHook = null;
 
-    [Signature("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 27 48 8B 00", DetourName = nameof(SelectTabTargetIgnoreDepthDetour))]
+    [Signature("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 29", DetourName = nameof(SelectTabTargetIgnoreDepthDetour))]
     private readonly Hook<SelectTabTargetDelegate>? selectTabTargetIgnoreDepthHook = null;
-
-
-    public readonly Dictionary<IntPtr, float> gameObjectHeatMap = new();
 
     private unsafe bool IsCircleTargetInput()
     {
-      var manager = (InputManager*)Service.SigScanner.GetStaticAddressFromSig("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 0F 28 F0 45 0F 57 C0");
-      return IsInputClicked(manager, 18) || IsInputClicked(manager, 19);
+      var manager = InputManager.Instance();
+      return IsInputPressed(manager, 18) || IsInputPressed(manager, 19);
     }
+
+    private readonly Dictionary<IntPtr, float> gameObjectHeatMap = new();
+
+    public IDictionary<IntPtr, float> GameObjectHeatMap => gameObjectHeatMap;
 
     private bool NeedsOverwrite()
     {
@@ -97,12 +98,9 @@ namespace MagitekStratagemPlugin
           overwrite = true;
         }
       }
-      else if (Configuration.OverrideSoftTarget && !isEnemyTarget)
+      else if (Configuration.OverrideSoftTarget && !isEnemyTarget && (Configuration.OverrideSoftTargetAlways || Service.TargetManager.SoftTarget == null))
       {
-        if (Configuration.OverrideSoftTargetAlways || Service.TargetManager.SoftTarget == null)
-        {
-          overwrite = true;
-        }
+        overwrite = true;
       }
       return overwrite;
     }
@@ -172,15 +170,15 @@ namespace MagitekStratagemPlugin
     }
 
     public MagitekStratagemPlugin(
-        [RequiredVersion("1.0")] DalamudPluginInterface pluginInterface,
-        [RequiredVersion("1.0")] ICommandManager commandManager)
+        IDalamudPluginInterface pluginInterface,
+        ICommandManager commandManager)
     {
       NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
       {
         var tobiiDir = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub");
         if (!Path.Exists(tobiiDir))
         {
-          throw new Exception("Tobii Game Hub not found.");
+          throw new TobiiGameHubNotFoundException();
         }
 
         var tobiiPath = LocateNewestTobiiGameHub(tobiiDir);
@@ -203,7 +201,7 @@ namespace MagitekStratagemPlugin
         }
         else
         {
-          throw new Exception("Something went wrong locating the newest version of Tobii Game Hub.");
+          throw new TobiiGameIntegrationNotFoundException();
         }
 
         return IntPtr.Zero;
@@ -242,67 +240,67 @@ namespace MagitekStratagemPlugin
         HelpMessage = "togggles the overlay"
       });
 
+      TrackerService = InitializeTrackerService();
+
       try
       {
-        TrackerService = new TobiiService(Configuration.CalibrationPoints);
+        Service.IGameInterop.InitializeFromAttributes(this);
       }
       catch (Exception ex)
       {
         Service.PluginLog.Error(ex.Message);
-      }
-
-      Service.IGameInterop.InitializeFromAttributes(this);
-
-      if (selectInitialTabTargetHook != null)
-      {
-        Service.PluginLog.Verbose("Successfully Hooked SelectInitialTabTarget");
-        selectInitialTabTargetHook.Enable();
-      }
-      else
-      {
-        Service.PluginLog.Error("Failed to hook SelectInitialTabTarget");
         ErrorHooking = true;
       }
 
-      if (selectTabTargetConeHook != null)
-      {
-        Service.PluginLog.Verbose("Successfully Hooked SelectTabTargetCone");
-        selectTabTargetConeHook.Enable();
-      }
-      else
-      {
-        Service.PluginLog.Error("Failed to hook SelectTabTargetCone");
-        ErrorHooking = true;
-      }
-
-      if (selectTabTargetIgnoreDepthHook != null)
-      {
-        Service.PluginLog.Verbose("Successfully Hooked SelectTabTargetIgnoreDepth");
-        selectTabTargetIgnoreDepthHook.Enable();
-      }
-      else
-      {
-        Service.PluginLog.Error("Failed to hook SelectTabTargetIgnoreDepth");
-        ErrorHooking = true;
-      }
+      EnableHook(selectInitialTabTargetHook, "SelectInitialTabTarget");
+      EnableHook(selectTabTargetConeHook, "SelectTabTargetCone");
+      EnableHook(selectTabTargetIgnoreDepthHook, "SelectTabTargetIgnoreDepth");
 
       Service.Framework.Update += OnUpdate;
       PluginInterface.UiBuilder.Draw += DrawUI;
       PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+      PluginInterface.UiBuilder.OpenMainUi += DrawConfigUI;
+    }
+
+    private ITrackerService InitializeTrackerService()
+    {
+      try
+      {
+        return new TobiiService(Configuration.CalibrationPoints);
+      }
+      catch (Exception ex)
+      {
+        Service.PluginLog.Error(ex.Message);
+        return new FakeService(Configuration.CalibrationPoints);
+      }
+    }
+
+    private void EnableHook<T>(Hook<T>? hook, string hookName) where T : Delegate
+    {
+      if (hook != null)
+      {
+        Service.PluginLog.Verbose($"Successfully Hooked {hookName}");
+        hook.Enable();
+      }
+      else
+      {
+        Service.PluginLog.Error($"Failed to hook {hookName}");
+        ErrorHooking = true;
+      }
     }
 
     public void Dispose()
     {
       unsafe
       {
-        if (lastHighlightGameObjectId.HasValue && HighlightGameObjectWithColor != null)
+        if (lastHighlightEntityId.HasValue && HighlightGameObjectWithColor != null)
         {
-          var obj = FindGameObject(lastHighlightGameObjectId.Value);
+          var obj = FindGameObject(lastHighlightEntityId.Value);
           if (obj != null)
           {
             HighlightGameObjectWithColor(obj.Address, 0);
           }
-          lastHighlightGameObjectId = null;
+          lastHighlightEntityId = null;
         }
       }
 
@@ -313,6 +311,7 @@ namespace MagitekStratagemPlugin
       Service.Framework.Update -= OnUpdate;
       PluginInterface.UiBuilder.Draw -= DrawUI;
       PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
+      PluginInterface.UiBuilder.OpenMainUi -= DrawConfigUI;
 
       WindowSystem.RemoveAllWindows();
 
@@ -360,17 +359,18 @@ namespace MagitekStratagemPlugin
       SetVisible(!Configuration.IsVisible);
     }
 
-    private unsafe GameObject? FindGameObject(uint objectId)
+    private unsafe IGameObject? FindGameObject(uint entityId)
     {
       var objectTable = Service.ObjectTable;
-      for (var i = 0; i < objectTable.Count; i++)
+      var total = objectTable.Count();
+      for (var i = 0; i < total; i++)
       {
         var obj = objectTable[i];
         if (obj == null)
         {
           continue;
         }
-        if (obj.ObjectId == objectId)
+        if (obj.EntityId == entityId)
         {
           return obj;
         }
@@ -410,168 +410,203 @@ namespace MagitekStratagemPlugin
 
     public void OnUpdate(IFramework framework)
     {
-      if (ErrorHooking)
-      {
-        return;
-      }
-
-      if (selectTabTargetConeHook == null || selectTabTargetIgnoreDepthHook == null || selectInitialTabTargetHook == null || HighlightGameObjectWithColor == null)
-      {
-        ErrorHooking = true;
-        return;
-      }
-
       var player = Service.ClientState.LocalPlayer;
+      IGameObject? lastHighlight = GetLastHighlight();
 
-      GameObject? lastHighlight = null;
-      if (lastHighlightGameObjectId.HasValue)
+      if (Configuration.Enabled && TrackerService != null && player != null)
       {
-        lastHighlight = FindGameObject(lastHighlightGameObjectId.Value);
-      }
+        if (HandleTracking()) return;
 
-      if (Configuration.Enabled && TrackerService != null)
-      {
-        if (!TrackerService.IsTracking)
-        {
-          if (Configuration.AutoStartTracking && !autoStarted)
-          {
-            TrackerService.StartTrackingWindow(PluginInterface.UiBuilder.WindowHandlePtr);
-            autoStarted = true;
-            Service.PluginLog.Debug("Tobii Eye Tracking auto-start.");
-          }
-          return;
-        }
-
-        var couldReadConfig = Service.IGameConfig.TryGet(SystemConfigOption.ScreenMode, out uint mode);
-        if (!couldReadConfig || mode == 0)
-        {
-          TrackerService.UseCalibration = false;
-        }
-        else if (couldReadConfig && mode != 0)
-        {
-          TrackerService.UseCalibration = Configuration.UseCalibration;
-        }
-
-
+        HandleCalibration();
         TrackerService.Update();
 
-        if (Service.Condition.Any() && player != null && TrackerService != null)
+        if (ShouldProcessPlayerAndService(player))
         {
-          unsafe
-          {
-            var size = ImGui.GetIO().DisplaySize;
-            Vector2 gazeScreenPos = new Vector2(
-             TrackerService.LastGazeX * (size.X / 2) + (size.X / 2),
-             -TrackerService.LastGazeY * (size.Y / 2) + (size.Y / 2));
-
-            if (Service.GameGui.ScreenToWorld(gazeScreenPos, out Vector3 worldPos))
-            {
-              var closestDistance = float.MaxValue;
-
-              foreach (var actor in Service.ObjectTable)
-              {
-                if (actor == null)
-                {
-                  continue;
-                }
-                var gos = (GameObjectStruct*)actor.Address;
-                if (gos->GetIsTargetable() && actor != player)
-                {
-                  var distance = FFXIVClientStructs.FFXIV.Common.Math.Vector3.Distance(worldPos, actor.Position);
-                  if (ClosestMatch == null)
-                  {
-                    ClosestMatch = actor;
-                    closestDistance = distance;
-                    continue;
-                  }
-
-                  if (closestDistance > distance)
-                  {
-                    ClosestMatch = actor;
-                    closestDistance = distance;
-                    IsRaycasted = false;
-                  }
-                }
-              }
-            }
-
-            // Prevents crashing the frame the character loads in, courtesy of Hasselnussbomber
-            var isFading = RaptureAtkUnitManager.Instance()->IsUiFading;
-            if (Configuration.UseRaycast && !isFading)
-            {
-              for (var i = 0; i < Configuration.GazeCircleSegments + 1; i++)
-              {
-                int rayPosX, rayPosY;
-                if (i == Configuration.GazeCircleSegments)
-                {
-                  // Casta  ray exactly at the center of the gaze point
-                  rayPosX = (int)gazeScreenPos.X;
-                  rayPosY = (int)gazeScreenPos.Y;
-                }
-                else
-                {
-                  // Cast a ray in a circle around the gaze point, with a randomized offset
-                  var randomFloat = (float)Random.NextDouble();
-                  rayPosX = (int)(gazeScreenPos.X + (randomFloat * Configuration.GazeCircleRadius * Math.Cos(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
-                  rayPosY = (int)(gazeScreenPos.Y + (randomFloat * Configuration.GazeCircleRadius * Math.Sin(i * 2 * Math.PI / Configuration.GazeCircleSegments)));
-                }
-                
-                var rayHit = TargetSystem.Instance()->GetMouseOverObject(rayPosX, rayPosY);
-                if (rayHit != null)
-                {
-                  if (gameObjectHeatMap.ContainsKey((IntPtr)rayHit))
-                  {
-                    gameObjectHeatMap[(IntPtr)rayHit] += Configuration.HeatIncrement;
-                  }
-                  else
-                  {
-                    gameObjectHeatMap[(IntPtr)rayHit] = Configuration.HeatIncrement;
-                  }
-                }
-              }
-
-              var ptr = FindMaxHeat();
-              if (ptr != null)
-              {
-                var raycasted = Service.ObjectTable.FirstOrDefault(x => (GameObjectStruct*)x.Address == (GameObjectStruct*)ptr);
-                if (raycasted != null)
-                {
-                  ClosestMatch = raycasted;
-                  IsRaycasted = true;
-                }
-              }
-
-              DecayHeat();
-            }
-
-            if (ClosestMatch != null)
-            {
-              if (lastHighlight != null && lastHighlight.ObjectId != ClosestMatch.ObjectId)
-              {
-                HighlightGameObjectWithColor(lastHighlight.Address, 0);
-                lastHighlightGameObjectId = null;
-              }
-
-              HighlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
-              lastHighlightGameObjectId = ClosestMatch.ObjectId;
-            }
-            else if (ClosestMatch == null && lastHighlight != null)
-            {
-              HighlightGameObjectWithColor(lastHighlight.Address, 0);
-              lastHighlightGameObjectId = null;
-            }
-          }
+          ProcessGaze(player, lastHighlight);
         }
       }
       else
       {
-        unsafe
+        ClearLastHighlight(lastHighlight);
+      }
+    }
+
+    private IGameObject? GetLastHighlight()
+    {
+      if (lastHighlightEntityId.HasValue)
+      {
+        return FindGameObject(lastHighlightEntityId.Value);
+      }
+      return null;
+    }
+
+    private bool HandleTracking()
+    {
+      if (!TrackerService.IsTracking)
+      {
+        if (Configuration.AutoStartTracking && !autoStarted)
         {
-          if (lastHighlight != null)
+          TrackerService.StartTrackingWindow(PluginInterface.UiBuilder.WindowHandlePtr);
+          autoStarted = true;
+          Service.PluginLog.Debug("Tobii Eye Tracking auto-start.");
+        }
+        return true;
+      }
+      return false;
+    }
+
+    private void HandleCalibration()
+    {
+      var couldReadConfig = Service.IGameConfig.TryGet(SystemConfigOption.ScreenMode, out uint mode);
+      TrackerService.UseCalibration = couldReadConfig && mode != 0 && Configuration.UseCalibration;
+    }
+
+    private bool ShouldProcessPlayerAndService(IGameObject? player)
+    {
+      return Service.Condition.Any() && player != null;
+    }
+
+    private void ProcessGaze(IGameObject player, IGameObject? lastHighlight)
+    {
+      unsafe
+      {
+        var size = ImGui.GetIO().DisplaySize;
+        Vector2 gazeScreenPos = CalculateGazeScreenPos(size);
+        if (Service.GameGui.ScreenToWorld(gazeScreenPos, out Vector3 worldPos))
+        {
+          UpdateClosestMatch(player, worldPos);
+        }
+
+        if (Configuration.UseRaycast && !IsUiFading())
+        {
+          PerformRaycasting(gazeScreenPos);
+          UpdateClosestMatchFromHeatMap();
+          DecayHeat();
+        }
+
+        UpdateHighlight(lastHighlight);
+      }
+    }
+
+    private Vector2 CalculateGazeScreenPos(Vector2 size)
+    {
+      return new Vector2(
+          TrackerService.LastGazeX * (size.X / 2) + (size.X / 2),
+          -TrackerService.LastGazeY * (size.Y / 2) + (size.Y / 2));
+    }
+
+    private void UpdateClosestMatch(IGameObject player, Vector3 worldPos)
+    {
+      var closestDistance = float.MaxValue;
+      foreach (var actor in Service.ObjectTable)
+      {
+        if (actor == null) continue;
+        var gos = (GameObjectStruct*)actor.Address;
+        if (gos->GetIsTargetable() && actor != player)
+        {
+          var distance = FFXIVClientStructs.FFXIV.Common.Math.Vector3.Distance(worldPos, actor.Position);
+          if (ClosestMatch == null || closestDistance > distance)
           {
-            HighlightGameObjectWithColor(lastHighlight.Address, 0);
-            lastHighlightGameObjectId = null;
+            ClosestMatch = actor;
+            closestDistance = distance;
+            IsRaycasted = false;
           }
+        }
+      }
+    }
+
+    private bool IsUiFading()
+    {
+      return RaptureAtkUnitManager.Instance()->IsUiFading;
+    }
+
+    private void PerformRaycasting(Vector2 gazeScreenPos)
+    {
+      for (var i = 0; i < Configuration.GazeCircleSegments + 1; i++)
+      {
+        var (rayPosX, rayPosY) = CalculateRayPosition(gazeScreenPos, i);
+        var rayHit = TargetSystem.Instance()->GetMouseOverObject(rayPosX, rayPosY);
+        UpdateHeatMap(rayHit);
+      }
+    }
+
+    private (int rayPosX, int rayPosY) CalculateRayPosition(Vector2 gazeScreenPos, int i)
+    {
+      if (i == Configuration.GazeCircleSegments)
+      {
+        return ((int)gazeScreenPos.X, (int)gazeScreenPos.Y);
+      }
+      var randomFloat = (float)Random.NextDouble();
+      return (
+          (int)(gazeScreenPos.X + randomFloat * Configuration.GazeCircleRadius * Math.Cos(i * 2 * Math.PI / Configuration.GazeCircleSegments)),
+          (int)(gazeScreenPos.Y + randomFloat * Configuration.GazeCircleRadius * Math.Sin(i * 2 * Math.PI / Configuration.GazeCircleSegments))
+      );
+    }
+
+    private void UpdateHeatMap(GameObjectStruct* rayHit)
+    {
+      if (rayHit != null)
+      {
+        if (gameObjectHeatMap.ContainsKey((IntPtr)rayHit))
+        {
+          gameObjectHeatMap[(IntPtr)rayHit] += Configuration.HeatIncrement;
+        }
+        else
+        {
+          gameObjectHeatMap[(IntPtr)rayHit] = Configuration.HeatIncrement;
+        }
+      }
+    }
+
+    private void UpdateClosestMatchFromHeatMap()
+    {
+      var ptr = FindMaxHeat();
+      if (ptr != null)
+      {
+        var raycasted = Service.ObjectTable.FirstOrDefault(x => (GameObjectStruct*)x.Address == (GameObjectStruct*)ptr);
+        if (raycasted != null)
+        {
+          ClosestMatch = raycasted;
+          IsRaycasted = true;
+        }
+      }
+    }
+
+    private void UpdateHighlight(IGameObject? lastHighlight)
+    {
+      if (ClosestMatch != null)
+      {
+        UpdateHighlightColor(lastHighlight);
+        lastHighlightEntityId = ClosestMatch.EntityId;
+      }
+      else if (lastHighlight != null)
+      {
+        HighlightGameObjectWithColor(lastHighlight.Address, 0);
+        lastHighlightEntityId = null;
+      }
+    }
+
+    private void UpdateHighlightColor(IGameObject? lastHighlight)
+    {
+      if (ClosestMatch != null)
+      {
+        if (lastHighlight != null && lastHighlight.EntityId != ClosestMatch.EntityId)
+        {
+          HighlightGameObjectWithColor(lastHighlight.Address, 0);
+          lastHighlightEntityId = null;
+        }
+        HighlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
+      }
+    }
+
+    private void ClearLastHighlight(IGameObject? lastHighlight)
+    {
+      unsafe
+      {
+        if (lastHighlight != null)
+        {
+          HighlightGameObjectWithColor(lastHighlight.Address, 0);
+          lastHighlightEntityId = null;
         }
       }
     }
