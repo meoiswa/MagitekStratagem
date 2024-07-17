@@ -70,7 +70,46 @@ namespace MagitekStratagemPlugin
     public TobiiService(List<CalibrationPoint> calibrationPoints)
     {
       TobiiGameIntegrationApi.SetApplicationName("FFXIV Magitek Stratagem");
-      TobiiGameIntegrationApi.IsApiInitialized();
+      var tinfos = TobiiGameIntegrationApi.GetTrackerInfos();
+
+      foreach (var tinfo in tinfos)
+      {
+        Service.PluginLog.Verbose($"Tracker: {tinfo.SerialNumber}: {tinfo.Type} {tinfo.FriendlyName} {tinfo.Url} {tinfo.FirmwareVersion}");
+      }
+
+      TobiiGameIntegrationApi.PrelinkAll();
+      if (TobiiGameIntegrationApi.IsApiInitialized())
+      {
+        Service.PluginLog.Verbose($"Tobii Game Integration API Initialized.");
+      }
+      else
+      {
+        Service.PluginLog.Verbose($"Tobii Game Integration API NOT Initialized.");
+      }
+      if (TobiiGameIntegrationApi.IsPresent())
+      {
+        Service.PluginLog.Verbose($"Tobii Eye Tracker is present.");
+      }
+      else
+      {
+        Service.PluginLog.Verbose($"Tobii Eye Tracker is NOT present.");
+      }
+      if (TobiiGameIntegrationApi.IsTrackerConnected())
+      {
+        Service.PluginLog.Verbose($"Tobii Eye Tracker is connected.");
+      }
+      else
+      {
+        Service.PluginLog.Verbose($"Tobii Eye Tracker is NOT connected.");
+      }
+      if (TobiiGameIntegrationApi.IsTrackerEnabled())
+      {
+        Service.PluginLog.Verbose($"Tobii Eye Tracker is enabled.");
+      }
+      else
+      {
+        Service.PluginLog.Verbose($"Tobii Eye Tracker is NOT enabled.");
+      }
       TobiiGameIntegrationApi.UpdateTrackerInfos();
       CalibrationPoints = calibrationPoints;
     }
@@ -84,6 +123,7 @@ namespace MagitekStratagemPlugin
     {
       if (!IsTracking)
       {
+        Service.PluginLog.Verbose($"Attempting to track window #{windowHandle}.");
         if (TobiiGameIntegrationApi.TrackWindow(windowHandle))
         {
           IsTracking = true;

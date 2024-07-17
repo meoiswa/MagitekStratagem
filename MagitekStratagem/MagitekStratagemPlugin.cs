@@ -75,6 +75,7 @@ namespace MagitekStratagemPlugin
     }
 
     private readonly Dictionary<IntPtr, float> gameObjectHeatMap = new();
+    private nint tobiiGameIntegrationApix64Ptr = IntPtr.Zero;
 
     public IDictionary<IntPtr, float> GameObjectHeatMap => gameObjectHeatMap;
 
@@ -146,7 +147,7 @@ namespace MagitekStratagemPlugin
       return originalResult;
     }
 
-    public string LocateNewestTobiiGameHub(string dirPath)
+    public string LocateNewestTobiiGameHub(string dirPath, Version? force = null)
     {
       var regex = new Regex(@"app-([0-9]+\.[0-9]+\.[0-9])-?.*");
       var dirs = Directory.GetDirectories(dirPath);
@@ -158,11 +159,15 @@ namespace MagitekStratagemPlugin
         var versPart = regex.Match(dirName).Groups[1].Value;
         if (Version.TryParse(versPart, out var version))
         {
-          Console.WriteLine(version);
-          if (version > highestVersion)
+          Service.PluginLog.Verbose($"Found Tobii GameHub version {version}");
+          if (force == null && version > highestVersion)
           {
             highestVersion = version;
             highestVersionDir = dir;
+          }
+          else if (force != null && version == force)
+          {
+            return dir;
           }
         }
       }
@@ -173,41 +178,17 @@ namespace MagitekStratagemPlugin
         IDalamudPluginInterface pluginInterface,
         ICommandManager commandManager)
     {
-      NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
-      {
-        var tobiiDir = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub");
-        if (!Path.Exists(tobiiDir))
-        {
-          throw new TobiiGameHubNotFoundException();
-        }
-
-        var tobiiPath = LocateNewestTobiiGameHub(tobiiDir);
-
-        Service.PluginLog.Verbose("Searching potential Tobii GameHub install path", tobiiPath);
-        if (Path.Exists(tobiiPath))
-        {
-          if (libraryName == "tobii_gameintegration_x64.dll")
-          {
-            var lib = Path.Join(tobiiPath, "tobii_gameintegration_x64.dll");
-            Service.PluginLog.Verbose("Loading Tobii Game Integration DLL from " + lib);
-            return NativeLibrary.Load(lib);
-          }
-          else if (libraryName == "tobii_gameintegration_x86.dll")
-          {
-            var lib = Path.Join(tobiiPath, "tobii_gameintegration_x86.dll");
-            Service.PluginLog.Verbose("Loading Tobii Game Integration DLL from " + lib);
-            return NativeLibrary.Load(lib);
-          }
-        }
-        else
-        {
-          throw new TobiiGameIntegrationNotFoundException();
-        }
-
-        return IntPtr.Zero;
-      });
-
       pluginInterface.Create<Service>();
+
+      try
+      {
+        ResolveTobiiGameIntegrationDll();
+      }
+      catch (Exception ex)
+      {
+        Service.PluginLog.Error($"Error attempting to resolve Tobii Game Integration DLL's path: {ex.Message}");
+        ErrorHooking = true;
+      }
 
       PluginInterface = pluginInterface;
       CommandManager = commandManager;
@@ -260,6 +241,44 @@ namespace MagitekStratagemPlugin
       PluginInterface.UiBuilder.Draw += DrawUI;
       PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
       PluginInterface.UiBuilder.OpenMainUi += DrawConfigUI;
+    }
+
+    private void ResolveTobiiGameIntegrationDll()
+    {
+      var tobiiDir = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub");
+      if (!Path.Exists(tobiiDir))
+      {
+        throw new TobiiGameHubNotFoundException();
+      }
+      var tobiiPath = LocateNewestTobiiGameHub(tobiiDir, new Version(3, 3, 0));
+
+      if (tobiiPath != null)
+      {
+        Service.PluginLog.Verbose("Searching potential Tobii GameHub install path", tobiiPath);
+        if (Path.Exists(tobiiPath))
+        {
+          var lib = Path.Join(tobiiPath, "tobii_gameintegration_x64.dll");
+          Service.PluginLog.Verbose("Loading Tobii Game Integration DLL from " + lib);
+          tobiiGameIntegrationApix64Ptr = NativeLibrary.Load(lib);
+        }
+        else
+        {
+          throw new TobiiGameIntegrationNotFoundException();
+        }
+      }
+      else
+      {
+        Service.PluginLog.Verbose("Tobii GameHub not found.");
+      }
+
+      NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
+      {
+        if (libraryName == "tobii_gameintegration_x64.dll")
+        {
+          return this.tobiiGameIntegrationApix64Ptr;
+        }
+        return IntPtr.Zero;
+      });
     }
 
     private ITrackerService InitializeTrackerService()

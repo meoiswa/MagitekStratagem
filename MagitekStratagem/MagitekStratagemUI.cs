@@ -50,7 +50,11 @@ namespace MagitekStratagemPlugin
       ImGui.NewLine();
       ImGui.TextWrapped("Disclaimer: This plugin is not officially supported by Tobii. Use at your own risk."
         + " Due to the nature of hot-loading Tobii SDK DLLs, this plugin may crash your game unexpectedly. "
-        + " You must have Tobii Game Hub installed, and use a Tobii Eye Tracker that is compatible (4 or 5)");
+        + " You must have Tobii Game Hub installed, and use a Tobii Eye Tracker that is compatible (4 or 5).");
+      ImGui.NewLine();
+      ImGui.TextWrapped("IMPORTANT: due to changes in newer versions, you MUST have version v3.3.0 of the "
+        + " Tobii Game Hub App available in your system. Check the \"Plugins by Meoiswa\" #plugin-help-forum"
+        + " post on the official Dalamud Discord for more information.");
       ImGui.NewLine();
       ImGui.TextWrapped("In compliance with Tobii guidelines, this plugin will not record nor share Eye Tracking data with any other software component, and Eye Tracking data is immediately disposed after use.");
       ImGui.NewLine();
