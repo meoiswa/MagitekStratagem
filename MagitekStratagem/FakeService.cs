@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Numerics;
 using ImGuiNET;
 
@@ -8,26 +7,20 @@ namespace MagitekStratagemPlugin
   public sealed class FakeService : ITrackerService
   {
     public bool IsTracking { get; private set; }
-    public long LastGazeTimeStamp { get; private set; }
+    public long LastGazeTimestamp { get; private set; }
     public float LastGazeX { get; private set; }
     public float LastGazeY { get; private set; }
-    public float LastRawGazeX { get => LastGazeX; }
-    public float LastRawGazeY { get => LastGazeY; }
     public Vector2 LastCursorPos { get; private set; } = Vector2.Zero;
     public Vector2 DisplaySize { get; private set; } = Vector2.Zero;
-    public List<CalibrationPoint> CalibrationPoints { get; private set; }
 
-    public bool UseCalibration { get; set; }
-
-    public FakeService(List<CalibrationPoint> calibrationPoints)
+    public FakeService()
     {
       LastGazeX = 0f;
       LastGazeY = 0f;
-      LastGazeTimeStamp = DateTime.Now.Ticks;
-      CalibrationPoints = calibrationPoints;
+      LastGazeTimestamp = 0;
     }
 
-    public void StartTrackingWindow(nint windowHandle)
+    public void StartTracking()
     {
       if (!IsTracking)
       {
@@ -52,12 +45,7 @@ namespace MagitekStratagemPlugin
         LastGazeX = pos.X;
         LastGazeY = -pos.Y;
       }
-      LastGazeTimeStamp = DateTime.Now.Ticks;
-    }
-
-    public void Shutdown()
-    {
-      StopTracking();
+      LastGazeTimestamp = DateTime.Now.Ticks;
     }
 
     public void Draw()
@@ -66,9 +54,18 @@ namespace MagitekStratagemPlugin
       DisplaySize = ImGui.GetIO().DisplaySize;
     }
 
-    public void AddCalibrationPoint(float x, float y)
+    private void Dispose(bool disposing)
     {
-      CalibrationPoints?.Add(new CalibrationPoint(x, y, x, y));
+      if (disposing)
+      {
+        StopTracking();
+      }
+    }
+
+    public void Dispose()
+    {
+      Dispose(true);
+      GC.SuppressFinalize(this);
     }
   }
 }

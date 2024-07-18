@@ -34,11 +34,6 @@ namespace MagitekStratagemPlugin
     public bool OverrideSoftTarget { get; set; } = true;
     public bool OverrideSoftTargetAlways { get; set; } = false;
 
-    public bool UseCalibration { get; set; } = false;
-    public List<CalibrationPoint> CalibrationPoints { get; set; } = new List<CalibrationPoint>();
-
-    public int CalibrationMonitor { get; set; } = 0;
-
     // the below exist just to make saving less cumbersome
     [NonSerialized]
     private MagitekStratagemPlugin? plugin;

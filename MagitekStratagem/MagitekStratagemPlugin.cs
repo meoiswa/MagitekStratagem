@@ -44,7 +44,6 @@ namespace MagitekStratagemPlugin
     public IGameObject? ClosestMatch { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
-    public bool IsCalibrationEditMode { get; set; }
 
     [Signature("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF")]
     private readonly delegate* unmanaged<IntPtr, byte, void> HighlightGameObjectWithColor = null;
@@ -250,15 +249,15 @@ namespace MagitekStratagemPlugin
       {
         throw new TobiiGameHubNotFoundException();
       }
-      var tobiiPath = LocateNewestTobiiGameHub(tobiiDir, new Version(3, 3, 0));
+      var tobiiPath = LocateNewestTobiiGameHub(tobiiDir);
 
       if (tobiiPath != null)
       {
         Service.PluginLog.Verbose("Searching potential Tobii GameHub install path", tobiiPath);
         if (Path.Exists(tobiiPath))
         {
-          var lib = Path.Join(tobiiPath, "tobii_gameintegration_x64.dll");
-          Service.PluginLog.Verbose("Loading Tobii Game Integration DLL from " + lib);
+          var lib = Path.Join(tobiiPath, Tobii2.StreamEngine.Library);
+          Service.PluginLog.Verbose("Loading Tobii Stream Engine DLL from " + lib);
           tobiiGameIntegrationApix64Ptr = NativeLibrary.Load(lib);
         }
         else
@@ -273,7 +272,7 @@ namespace MagitekStratagemPlugin
 
       NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
       {
-        if (libraryName == "tobii_gameintegration_x64.dll")
+        if (libraryName == Tobii2.StreamEngine.Library)
         {
           return this.tobiiGameIntegrationApix64Ptr;
         }
@@ -285,12 +284,12 @@ namespace MagitekStratagemPlugin
     {
       try
       {
-        return new TobiiService(Configuration.CalibrationPoints);
+        return new TobiiService();
       }
       catch (Exception ex)
       {
         Service.PluginLog.Error(ex.Message);
-        return new FakeService(Configuration.CalibrationPoints);
+        return new FakeService();
       }
     }
 
@@ -310,6 +309,9 @@ namespace MagitekStratagemPlugin
 
     public void Dispose()
     {
+      TrackerService?.Dispose();
+      TrackerService = null;
+
       unsafe
       {
         if (lastHighlightEntityId.HasValue && HighlightGameObjectWithColor != null)
@@ -337,7 +339,6 @@ namespace MagitekStratagemPlugin
       CommandManager.RemoveHandler(commandName);
       CommandManager.RemoveHandler(overlayCommandName);
 
-      TrackerService?.Shutdown();
     }
 
     public void SaveConfiguration()
@@ -432,14 +433,13 @@ namespace MagitekStratagemPlugin
       var player = Service.ClientState.LocalPlayer;
       IGameObject? lastHighlight = GetLastHighlight();
 
-      if (Configuration.Enabled && TrackerService != null && player != null)
+      if (Configuration.Enabled && TrackerService != null)
       {
         if (HandleTracking()) return;
 
-        HandleCalibration();
         TrackerService.Update();
 
-        if (ShouldProcessPlayerAndService(player))
+        if (Service.Condition.Any() && player != null)
         {
           ProcessGaze(player, lastHighlight);
         }
@@ -465,24 +465,13 @@ namespace MagitekStratagemPlugin
       {
         if (Configuration.AutoStartTracking && !autoStarted)
         {
-          TrackerService.StartTrackingWindow(PluginInterface.UiBuilder.WindowHandlePtr);
+          TrackerService.StartTracking();
           autoStarted = true;
           Service.PluginLog.Debug("Tobii Eye Tracking auto-start.");
         }
         return true;
       }
       return false;
-    }
-
-    private void HandleCalibration()
-    {
-      var couldReadConfig = Service.IGameConfig.TryGet(SystemConfigOption.ScreenMode, out uint mode);
-      TrackerService.UseCalibration = couldReadConfig && mode != 0 && Configuration.UseCalibration;
-    }
-
-    private bool ShouldProcessPlayerAndService(IGameObject? player)
-    {
-      return Service.Condition.Any() && player != null;
     }
 
     private void ProcessGaze(IGameObject player, IGameObject? lastHighlight)

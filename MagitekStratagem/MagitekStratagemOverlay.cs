@@ -55,23 +55,6 @@ namespace MagitekStratagemPlugin
 
       var dl = ImGui.GetWindowDrawList();
 
-      if (plugin.Configuration.IsVisible && plugin.TrackerService!.CalibrationPoints != null)
-      {
-        foreach (var calibrationPoint in plugin.TrackerService!.CalibrationPoints)
-        {
-          if (calibrationPoint.Reference != null && calibrationPoint.Gaze != null)
-          {
-            DrawPoint(calibrationPoint.Reference, dl, red);
-            DrawPoint(calibrationPoint.Gaze, dl, blue);
-          }
-        }
-
-        dl.AddCircle(rawCoord, plugin.Configuration.GazeCircleRadius + blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
-        dl.AddCircle(rawCoord, plugin.Configuration.GazeCircleRadius - blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
-        dl.AddCircle(rawCoord, plugin.Configuration.GazeCircleRadius, yellow, plugin.Configuration.GazeCircleSegments, whiteThick);
-      }
-
-
       dl.AddCircle(gazeCoord, plugin.Configuration.GazeCircleRadius + blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
       dl.AddCircle(gazeCoord, plugin.Configuration.GazeCircleRadius - blackThick, black, plugin.Configuration.GazeCircleSegments, blackThick);
       dl.AddCircle(gazeCoord, plugin.Configuration.GazeCircleRadius, white, plugin.Configuration.GazeCircleSegments, whiteThick);
@@ -113,30 +96,7 @@ namespace MagitekStratagemPlugin
         return;
       }
 
-      if (plugin.IsCalibrationEditMode)
-      {
-        ImGui.SetWindowFocus();
-        Flags &= ~ImGuiWindowFlags.NoInputs;
-
-        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
-        {
-          var pos = ImGui.GetMousePos();
-          var size = ImGui.GetIO().DisplaySize;
-          var x = (pos.X - size.X / 2) / (size.X / 2);
-          var y = -(pos.Y - size.Y / 2) / (size.Y / 2);
-          plugin.TrackerService.AddCalibrationPoint(x, y);
-        }
-        else if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
-        {
-          plugin.IsCalibrationEditMode = false;
-        }
-      }
-      else
-      {
-        Flags |= ImGuiWindowFlags.NoInputs;
-      }
-
-      DrawBubbles(plugin.TrackerService.LastGazeX, plugin.TrackerService.LastGazeY, plugin.TrackerService.LastRawGazeX, plugin.TrackerService.LastRawGazeY);
+      DrawBubbles(plugin.TrackerService.LastGazeX, plugin.TrackerService.LastGazeY, plugin.TrackerService.LastGazeX, plugin.TrackerService.LastGazeY);
     }
   }
 }

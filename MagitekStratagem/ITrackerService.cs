@@ -1,23 +1,16 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
 
 namespace MagitekStratagemPlugin
 {
-  public interface ITrackerService
+  public interface ITrackerService : IDisposable
   {
     bool IsTracking { get; }
-    long LastGazeTimeStamp { get; }
+    long LastGazeTimestamp { get; }
     float LastGazeX { get; }
     float LastGazeY { get; }
-    float LastRawGazeX { get; }
-    float LastRawGazeY { get; }
-    List<CalibrationPoint> CalibrationPoints { get; }
-    bool UseCalibration { get; set; }
-    void StartTrackingWindow(nint windowHandle);
+    void StartTracking();
     void StopTracking();
     void Update();
-    void Shutdown();
-    void AddCalibrationPoint(float x, float y);
     virtual void Draw() { }
   }
 }

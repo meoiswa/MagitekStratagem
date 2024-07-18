@@ -52,8 +52,8 @@ namespace MagitekStratagemPlugin
         + " Due to the nature of hot-loading Tobii SDK DLLs, this plugin may crash your game unexpectedly. "
         + " You must have Tobii Game Hub installed, and use a Tobii Eye Tracker that is compatible (4 or 5).");
       ImGui.NewLine();
-      ImGui.TextWrapped("IMPORTANT: due to changes in newer versions, you MUST have version v3.3.0 of the "
-        + " Tobii Game Hub App available in your system. Check the \"Plugins by Meoiswa\" #plugin-help-forum"
+      ImGui.TextWrapped("IMPORTANT: due to changes in newer versions, only fullscreen or borderless windowed mode"
+        + " is supported temporarily. Check the \"Plugins by Meoiswa\" #plugin-help-forum"
         + " post on the official Dalamud Discord for more information.");
       ImGui.NewLine();
       ImGui.TextWrapped("In compliance with Tobii guidelines, this plugin will not record nor share Eye Tracking data with any other software component, and Eye Tracking data is immediately disposed after use.");
@@ -74,7 +74,7 @@ namespace MagitekStratagemPlugin
         ImGui.Text("Tobii GameHub Not Found");
         if (ImGui.Button("Load Fake Service"))
         {
-          plugin.TrackerService = new FakeService(plugin.Configuration.CalibrationPoints);
+          plugin.TrackerService = new FakeService();
         }
         return;
       }
@@ -85,7 +85,6 @@ namespace MagitekStratagemPlugin
       DrawAppareanceSettingsSection();
       DrawGazeCircleSettingsSection();
       DrawRaycastSettingsSection();
-      DrawCalibrationSection();
 
       ImGui.Separator();
 
@@ -95,7 +94,7 @@ namespace MagitekStratagemPlugin
         {
           if (ImGui.Button("Start Tracking"))
           {
-            plugin.TrackerService.StartTrackingWindow(plugin.PluginInterface.UiBuilder.WindowHandlePtr);
+            plugin.TrackerService.StartTracking();
           }
         }
         else
@@ -140,7 +139,7 @@ namespace MagitekStratagemPlugin
         ImGui.Separator();
 
         ImGui.Text("Gaze:");
-        ImGui.Text($"LastTimestamp: {plugin.TrackerService.LastGazeTimeStamp}");
+        ImGui.Text($"LastTime: {plugin.TrackerService.LastGazeTimestamp}");
         ImGui.Text($"LastX: {plugin.TrackerService.LastGazeX}");
         ImGui.Text($"LastY: {plugin.TrackerService.LastGazeY}");
 
@@ -153,60 +152,6 @@ namespace MagitekStratagemPlugin
         }
         ImGui.Unindent();
       }
-    }
-
-    private void DrawCalibrationSection()
-    {
-      ImGui.BeginDisabled(Service.IGameConfig.TryGet(SystemConfigOption.ScreenMode, out uint mode) && mode == 0);
-      if (ImGui.CollapsingHeader("Calibration (Not available in Windowed Mode)"))
-      {
-        ImGui.Indent();
-        ImGui.Text("Fine-tuning calibration beyond what your vendor provides.");
-
-        var useCalibration = plugin.Configuration.UseCalibration;
-        if (ImGui.Checkbox("Use Calibration", ref useCalibration))
-        {
-          plugin.Configuration.UseCalibration = useCalibration;
-          plugin.Configuration.Save();
-        }
-
-        ImGui.NewLine();
-
-        if (!plugin.IsCalibrationEditMode)
-        {
-          if (ImGui.Button("Enter Calibration Mode"))
-          {
-            plugin.IsCalibrationEditMode = true;
-          }
-
-          if (ImGui.Button("Clear Calibration"))
-          {
-            plugin.Configuration.CalibrationPoints.Clear();
-            plugin.Configuration.Save();
-          }
-        }
-        else
-        {
-          ImGui.Text("(Right click to exit Calibration Mode)");
-        }
-
-        ImGui.NewLine();
-        if (ImGui.CollapsingHeader("About Calibration"))
-        {
-          ImGui.Indent();
-          ImGui.TextWrapped("Allows you to fine-tune the calibration of your eye tracker."
-           + "\nCalibration points are created on your cursor position,"
-           + "\nLook directly at the tip of the cursor, then left-click to create a point."
-           + "\nEach calibration point stores the offset between the cursor and your gaze."
-           + "\nThe closer your gaze is to a calibration point, the more it affects the result."
-           + "\nFor best results, add calibration points close to the edges of the screen."
-           + "\nA calibration point near the center might be useful as well.");
-          ImGui.Unindent();
-        }
-
-        ImGui.Unindent();
-      }
-      ImGui.EndDisabled();
     }
 
     private void DrawRaycastSettingsSection()
