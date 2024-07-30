@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Authors>Meoiswa</Authors>
     <Company></Company>
-    <Version>0.6.0.0</Version>
+    <Version>0.7.0.0</Version>
     <Description>Eye tracker integration</Description>
     <Copyright></Copyright>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -29,6 +29,13 @@
 
   <ItemGroup>
     <Content Include="images\icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Eyeware\lib\*">
+      <TargetPath>%(Filename)%(Extension)</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

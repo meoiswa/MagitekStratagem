@@ -1,7 +1,10 @@
 using Dalamud.Game.Config;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
+using MagitekStratagemPlugin.Eyeware;
+using MagitekStratagemPlugin.Tobii;
 using System;
+using System.Diagnostics;
 using System.Numerics;
 
 namespace MagitekStratagemPlugin
@@ -34,6 +37,70 @@ namespace MagitekStratagemPlugin
       plugin.Configuration.Save();
     }
 
+    private void DrawServiceSelectorSection()
+    {
+      if (ImGui.CollapsingHeader("Service Selector"))
+      {
+        ImGui.Indent();
+        ImGui.TextWrapped("Select the service to use for eye tracking.");
+
+        var serviceType = (int)plugin.Configuration.TrackerServiceType;
+        if (ImGui.Combo("##service", ref serviceType, "Tobii\0Eyeware BeamEye\0"))
+        {
+          plugin.Configuration.TrackerServiceType = (TrackerServiceType)serviceType;
+          plugin.Configuration.Save();
+        }
+
+        ImGui.Unindent();
+      }
+    }
+
+    private void DrawDisclosureSection()
+    {
+      if (ImGui.CollapsingHeader("Tracker Service Information"))
+      {
+        ImGui.TextWrapped("IMPORTANT: due to changes in newer versions, only fullscreen or borderless windowed mode"
+          + " is supported temporarily. Check the \"Plugins by Meoiswa\" #plugin-help-forum"
+          + " post on the official Dalamud Discord for more information.");
+        ImGui.NewLine();
+
+        if (plugin.TrackerService == null)
+        {
+          ImGui.TextWrapped("No service selected.");
+        }
+        if (plugin.TrackerService is FakeService)
+        {
+          ImGui.TextWrapped("Fake Service is selected. Uses your mouse cursor as a fake gaze tracker.");
+        }
+        else if (plugin.TrackerService is TobiiService)
+        {
+          ImGui.TextWrapped("Tobii Eye Tracker 5");
+          ImGui.TextWrapped("Next generation head and eye tracking");
+          ImGui.NewLine();
+          ImGui.TextWrapped("Disclaimer: This plugin is not officially supported by Tobii. Use at your own risk."
+          + " Due to the nature of hot-loading Tobii SDK DLLs, this plugin may crash your game unexpectedly. "
+          + " You must have Tobii Game Hub installed, and use a Tobii Eye Tracker that is compatible (4 or 5).");
+          ImGui.TextWrapped("In compliance with Tobii guidelines, this plugin will not record nor share Eye Tracking"
+          + "a data with any other software component, and Eye Tracking data is immediately disposed after use.");
+        }
+        else if (plugin.TrackerService is BeamService)
+        {
+          ImGui.TextWrapped("Eyeware Beam Eye Tracker: Turn Your Webcam into an Eye Tracker");
+          ImGui.TextWrapped("Say goodbye to bulky hardware trackers for gaming. Upgrade your webcam with AI-powered eye tracking software now!");
+
+          if (ImGui.Button("Get Eyeware Beam Eye Tracker (Affiliate link)"))
+          {
+            Dalamud.Utility.Util.OpenLink("https://beam.eyeware.tech/?via=meoiswa");
+          }
+          ImGui.NewLine();
+          ImGui.TextWrapped("Disclaimer: This plugin is not officially supported by Eyewear. Use at your own risk."
+          + " You must have Eyewear Beam Eye Tracker installed, and have a valid active license.");
+          ImGui.TextWrapped("In compliance with Eyewear Beam guidelines, this plugin will not record nor share Eye Tracking"
+          + " data with any other software component, and Eye Tracking data is immediately disposed after use.");
+        }
+      }
+    }
+
     private void DrawSectionEnabled()
     {
       // can't ref a property, so use a local copy
@@ -48,16 +115,10 @@ namespace MagitekStratagemPlugin
     public override void Draw()
     {
       ImGui.NewLine();
-      ImGui.TextWrapped("Disclaimer: This plugin is not officially supported by Tobii. Use at your own risk."
-        + " Due to the nature of hot-loading Tobii SDK DLLs, this plugin may crash your game unexpectedly. "
-        + " You must have Tobii Game Hub installed, and use a Tobii Eye Tracker that is compatible (4 or 5).");
-      ImGui.NewLine();
-      ImGui.TextWrapped("IMPORTANT: due to changes in newer versions, only fullscreen or borderless windowed mode"
-        + " is supported temporarily. Check the \"Plugins by Meoiswa\" #plugin-help-forum"
-        + " post on the official Dalamud Discord for more information.");
-      ImGui.NewLine();
-      ImGui.TextWrapped("In compliance with Tobii guidelines, this plugin will not record nor share Eye Tracking data with any other software component, and Eye Tracking data is immediately disposed after use.");
-      ImGui.NewLine();
+
+      DrawServiceSelectorSection();
+
+      DrawDisclosureSection();
 
       ImGui.Separator();
 
@@ -138,10 +199,14 @@ namespace MagitekStratagemPlugin
 
         ImGui.Separator();
 
+        ImGui.Text("Tracking: " + plugin.TrackerService?.IsTracking);
         ImGui.Text("Gaze:");
-        ImGui.Text($"LastTime: {plugin.TrackerService.LastGazeTimestamp}");
-        ImGui.Text($"LastX: {plugin.TrackerService.LastGazeX}");
-        ImGui.Text($"LastY: {plugin.TrackerService.LastGazeY}");
+        if (plugin.TrackerService != null)
+        {
+          ImGui.Text($"LastTime: {plugin.TrackerService.LastGazeTimestamp}");
+          ImGui.Text($"LastX: {plugin.TrackerService.LastGazeX}");
+          ImGui.Text($"LastY: {plugin.TrackerService.LastGazeY}");
+        }
 
         ImGui.Separator();
 

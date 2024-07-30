@@ -33,6 +33,7 @@ namespace MagitekStratagemPlugin
     public bool OverrideEnemyTargetAlways { get; set; } = false;
     public bool OverrideSoftTarget { get; set; } = true;
     public bool OverrideSoftTargetAlways { get; set; } = false;
+    public TrackerServiceType TrackerServiceType { get; set; } = TrackerServiceType.Tobii;
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]

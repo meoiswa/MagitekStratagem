@@ -19,6 +19,8 @@ using System.Text.RegularExpressions;
 using Dalamud.Utility.Signatures;
 using Dalamud.Game.Config;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using MagitekStratagemPlugin.Tobii;
+using MagitekStratagemPlugin.Eyeware;
 
 namespace MagitekStratagemPlugin
 {
@@ -40,7 +42,8 @@ namespace MagitekStratagemPlugin
     public Random Random { get; }
     public MagitekStratagemUI Window { get; init; }
     public MagitekStratagemOverlay Overlay { get; init; }
-    public ITrackerService TrackerService { get; set; }
+    public ITrackerService? TrackerService { get; set; }
+    public TrackerServiceType? LastType { get; set; } = null;
     public IGameObject? ClosestMatch { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
@@ -75,6 +78,8 @@ namespace MagitekStratagemPlugin
 
     private readonly Dictionary<IntPtr, float> gameObjectHeatMap = new();
     private nint tobiiGameIntegrationApix64Ptr = IntPtr.Zero;
+
+    private nint eyewareTrackerClientApix64Ptr = IntPtr.Zero;
 
     public IDictionary<IntPtr, float> GameObjectHeatMap => gameObjectHeatMap;
 
@@ -178,6 +183,8 @@ namespace MagitekStratagemPlugin
         ICommandManager commandManager)
     {
       pluginInterface.Create<Service>();
+      PluginInterface = pluginInterface;
+
 
       try
       {
@@ -189,9 +196,21 @@ namespace MagitekStratagemPlugin
         ErrorHooking = true;
       }
 
-      PluginInterface = pluginInterface;
+      try
+      {
+        ResolveEyewareDll();
+      }
+      catch (Exception ex)
+      {
+        Service.PluginLog.Error($"Error attempting to resolve Eyeware DLL's path: {ex.Message}");
+        ErrorHooking = true;
+      }
+
+      SetDllResolvers();
+
       CommandManager = commandManager;
       WindowSystem = new("MagitekStratagemPlugin");
+
 
       Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
       Configuration.Initialize(this);
@@ -219,8 +238,6 @@ namespace MagitekStratagemPlugin
       {
         HelpMessage = "togggles the overlay"
       });
-
-      TrackerService = InitializeTrackerService();
 
       try
       {
@@ -256,7 +273,7 @@ namespace MagitekStratagemPlugin
         Service.PluginLog.Verbose("Searching potential Tobii GameHub install path", tobiiPath);
         if (Path.Exists(tobiiPath))
         {
-          var lib = Path.Join(tobiiPath, Tobii2.StreamEngine.Library);
+          var lib = Path.Join(tobiiPath, StreamEngine.Library);
           Service.PluginLog.Verbose("Loading Tobii Stream Engine DLL from " + lib);
           tobiiGameIntegrationApix64Ptr = NativeLibrary.Load(lib);
         }
@@ -269,27 +286,86 @@ namespace MagitekStratagemPlugin
       {
         Service.PluginLog.Verbose("Tobii GameHub not found.");
       }
+    }
 
+    private void ResolveEyewareDll()
+    {
+      Service.PluginLog.Verbose($"Searching for Eyeware Tracker Client DLL...");
+      var pluginDir = PluginInterface.AssemblyLocation.Directory?.FullName;
+      Service.PluginLog.Verbose("Plugin directory: " + pluginDir);
+
+      if (pluginDir != null)
+      {
+        var lib = Path.Join(pluginDir, TrackerClient.Library);
+        Service.PluginLog.Verbose("Loading Eyeware Tracker Client DLL from " + lib);
+        eyewareTrackerClientApix64Ptr = NativeLibrary.Load(lib);
+      }
+      else
+      {
+        Service.PluginLog.Verbose("Eyeware Tracker Client DLL not found.");
+      }
+    }
+
+    private void SetDllResolvers()
+    {
       NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
       {
-        if (libraryName == Tobii2.StreamEngine.Library)
+        if (libraryName == StreamEngine.Library)
         {
           return this.tobiiGameIntegrationApix64Ptr;
+        }
+        if (libraryName == TrackerClient.Library)
+        {
+          return this.eyewareTrackerClientApix64Ptr;
         }
         return IntPtr.Zero;
       });
     }
 
-    private ITrackerService InitializeTrackerService()
+    private void InitializeTrackerService()
     {
       try
       {
-        return new TobiiService();
+        if (Configuration.TrackerServiceType == TrackerServiceType.Tobii && LastType != TrackerServiceType.Tobii)
+        {
+          if (TrackerService != null)
+          {
+            TrackerService.StopTracking();
+            TrackerService.Dispose();
+          }
+          LastType = TrackerServiceType.Tobii;
+          TrackerService = new TobiiService();
+          autoStarted = false;
+        }
+        else if (Configuration.TrackerServiceType == TrackerServiceType.BeamEye && LastType != TrackerServiceType.BeamEye)
+        {
+          if (TrackerService != null)
+          {
+            TrackerService.StopTracking();
+            TrackerService.Dispose();
+          }
+          LastType = TrackerServiceType.BeamEye;
+          TrackerService = new BeamService();
+          autoStarted = false;
+        }
+        else if (Configuration.TrackerServiceType == TrackerServiceType.Fake && LastType != TrackerServiceType.Fake)
+        {
+          if (TrackerService != null)
+          {
+            TrackerService.StopTracking();
+            TrackerService.Dispose();
+          }
+          LastType = TrackerServiceType.Fake;
+          TrackerService = new FakeService();
+          autoStarted = false;
+        }
       }
       catch (Exception ex)
       {
         Service.PluginLog.Error(ex.Message);
-        return new FakeService();
+        LastType = TrackerServiceType.Fake;
+        TrackerService = new FakeService();
+        autoStarted = false;
       }
     }
 
@@ -433,20 +509,29 @@ namespace MagitekStratagemPlugin
       var player = Service.ClientState.LocalPlayer;
       IGameObject? lastHighlight = GetLastHighlight();
 
+      InitializeTrackerService();
+
       if (Configuration.Enabled && TrackerService != null)
       {
-        if (HandleTracking()) return;
+        HandleTracking();
 
-        TrackerService.Update();
-
-        if (Service.Condition.Any() && player != null)
+        if (TrackerService.IsTracking)
         {
-          ProcessGaze(player, lastHighlight);
+          TrackerService.Update();
+
+          if (Service.Condition.Any() && player != null && !Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.WatchingCutscene])
+          {
+            ProcessGaze(player, lastHighlight);
+          }
         }
       }
       else
       {
-        ClearLastHighlight(lastHighlight);
+        if (!Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.WatchingCutscene])
+        {
+          // TODO: Something is broken with this, it doesn't clear the last highlight correctly.
+          ClearLastHighlight(lastHighlight);
+        }
       }
     }
 
@@ -459,19 +544,14 @@ namespace MagitekStratagemPlugin
       return null;
     }
 
-    private bool HandleTracking()
+    private void HandleTracking()
     {
-      if (!TrackerService.IsTracking)
+      if (TrackerService != null && !TrackerService.IsTracking && Configuration.AutoStartTracking && !autoStarted)
       {
-        if (Configuration.AutoStartTracking && !autoStarted)
-        {
-          TrackerService.StartTracking();
-          autoStarted = true;
-          Service.PluginLog.Debug("Tobii Eye Tracking auto-start.");
-        }
-        return true;
+        TrackerService.StartTracking();
+        autoStarted = true;
+        Service.PluginLog.Debug("Tracking auto-start.");
       }
-      return false;
     }
 
     private void ProcessGaze(IGameObject player, IGameObject? lastHighlight)
@@ -499,8 +579,8 @@ namespace MagitekStratagemPlugin
     private Vector2 CalculateGazeScreenPos(Vector2 size)
     {
       return new Vector2(
-          TrackerService.LastGazeX * (size.X / 2) + (size.X / 2),
-          -TrackerService.LastGazeY * (size.Y / 2) + (size.Y / 2));
+          TrackerService!.LastGazeX * (size.X / 2) + (size.X / 2),
+          -TrackerService!.LastGazeY * (size.Y / 2) + (size.Y / 2));
     }
 
     private void UpdateClosestMatch(IGameObject player, Vector3 worldPos)

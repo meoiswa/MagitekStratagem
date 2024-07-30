@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
-namespace Tobii2
+namespace MagitekStratagemPlugin.Tobii
 {
   public static class StreamEngine
   {

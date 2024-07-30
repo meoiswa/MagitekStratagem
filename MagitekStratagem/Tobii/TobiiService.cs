@@ -1,7 +1,6 @@
 using System;
-using Tobii2;
 
-namespace MagitekStratagemPlugin
+namespace MagitekStratagemPlugin.Tobii
 {
   public sealed class Point
   {
@@ -31,10 +30,10 @@ namespace MagitekStratagemPlugin
 
     public TobiiService()
     {
-      var version = Tobii2.StreamEngine.GetApiVersion();
+      var version = StreamEngine.GetApiVersion();
       Service.PluginLog.Verbose($"Tobii Stream Engine API Version: {version.major}.{version.minor}.{version.revision}.{version.build}");
 
-      api = Tobii2.StreamEngine.CreateApi();
+      api = StreamEngine.CreateApi();
 
       var urls = api.EnumerateDeviceUrls();
 
@@ -46,6 +45,8 @@ namespace MagitekStratagemPlugin
       device = api.CreateDevice(urls[0]);
 
       Service.PluginLog.Verbose(device.ToString());
+
+      Service.PluginLog.Info("Tobii Service Initialized");
     }
 
     public void StartTracking()

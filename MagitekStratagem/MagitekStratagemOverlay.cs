@@ -1,5 +1,6 @@
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
+using MagitekStratagemPlugin.Tobii;
 using System;
 using System.Numerics;
 
