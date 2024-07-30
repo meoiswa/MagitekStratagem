@@ -47,6 +47,8 @@ namespace MagitekStratagemPlugin
     public IGameObject? ClosestMatch { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
+    public bool ErrorNoTobii { get; private set; } = false;
+    public bool ErrorNoEyeware { get; private set; } = false;
 
     [Signature("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF")]
     private readonly delegate* unmanaged<IntPtr, byte, void> HighlightGameObjectWithColor = null;
@@ -193,7 +195,7 @@ namespace MagitekStratagemPlugin
       catch (Exception ex)
       {
         Service.PluginLog.Error($"Error attempting to resolve Tobii Game Integration DLL's path: {ex.Message}");
-        ErrorHooking = true;
+        ErrorNoTobii = true;
       }
 
       try
@@ -203,7 +205,7 @@ namespace MagitekStratagemPlugin
       catch (Exception ex)
       {
         Service.PluginLog.Error($"Error attempting to resolve Eyeware DLL's path: {ex.Message}");
-        ErrorHooking = true;
+        ErrorNoEyeware = true;
       }
 
       SetDllResolvers();

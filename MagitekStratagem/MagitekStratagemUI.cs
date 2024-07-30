@@ -140,6 +140,18 @@ namespace MagitekStratagemPlugin
         return;
       }
 
+      if (plugin.Configuration.TrackerServiceType == TrackerServiceType.Tobii && plugin.ErrorNoTobii)
+      {
+        ImGui.Text("Tobii StreamEngine API DLLs Not Found");
+        return;
+      }
+
+      if (plugin.Configuration.TrackerServiceType == TrackerServiceType.BeamEye && plugin.ErrorNoEyeware)
+      {
+        ImGui.Text("Eyeware Beam Eye Tracker DLLs Not Found");
+        return;
+      }
+
       DrawSectionEnabled();
 
       DrawBehaviorSettingsSection();
