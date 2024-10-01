@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Authors>Meoiswa</Authors>
     <Company></Company>
-    <Version>0.7.0.1</Version>
+    <Version>0.7.0.2</Version>
     <Description>Eye tracker integration</Description>
     <Copyright></Copyright>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>

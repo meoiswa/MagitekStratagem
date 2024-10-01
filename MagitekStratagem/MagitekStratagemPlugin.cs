@@ -21,6 +21,8 @@ using Dalamud.Game.Config;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using MagitekStratagemPlugin.Tobii;
 using MagitekStratagemPlugin.Eyeware;
+using Dalamud.Game.Gui.PartyFinder.Types;
+using Dalamud.Game.ClientState.Conditions;
 
 namespace MagitekStratagemPlugin
 {
@@ -51,7 +53,7 @@ namespace MagitekStratagemPlugin
     public bool ErrorNoEyeware { get; private set; } = false;
 
     [Signature("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF")]
-    private readonly delegate* unmanaged<IntPtr, byte, void> HighlightGameObjectWithColor = null;
+    private readonly delegate* unmanaged<IntPtr, byte, void> HighlightGameObjectWithColorDelegate = null;
 
 
     [Signature("E8 ?? ?? ?? ?? 84 C0 44 8B C3")]
@@ -419,6 +421,25 @@ namespace MagitekStratagemPlugin
 
     }
 
+    private bool WatchingAnyCutscene()
+    {
+      return Service.Condition[ConditionFlag.OccupiedInCutSceneEvent] ||
+        Service.Condition[ConditionFlag.WatchingCutscene] ||
+        Service.Condition[ConditionFlag.OccupiedInEvent] ||
+        Service.Condition[ConditionFlag.WatchingCutscene] ||
+        Service.Condition[ConditionFlag.WatchingCutscene78];
+    }
+
+    private void HighlightGameObjectWithColor(IntPtr gameObject, byte color)
+    {
+      if (HighlightGameObjectWithColorDelegate == null || WatchingAnyCutscene())
+      {
+        return;
+      }
+
+      HighlightGameObjectWithColor(gameObject, color);
+    }
+
     public void SaveConfiguration()
     {
       var configJson = JsonConvert.SerializeObject(Configuration, Formatting.Indented);
@@ -521,7 +542,7 @@ namespace MagitekStratagemPlugin
         {
           TrackerService.Update();
 
-          if (Service.Condition.Any() && player != null && !Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.WatchingCutscene])
+          if (Service.Condition.Any() && player != null && !WatchingAnyCutscene())
           {
             ProcessGaze(player, lastHighlight);
           }
@@ -529,7 +550,7 @@ namespace MagitekStratagemPlugin
       }
       else
       {
-        if (!Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.WatchingCutscene])
+        if (!WatchingAnyCutscene())
         {
           // TODO: Something is broken with this, it doesn't clear the last highlight correctly.
           ClearLastHighlight(lastHighlight);
