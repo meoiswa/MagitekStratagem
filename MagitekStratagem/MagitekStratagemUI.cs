@@ -202,6 +202,7 @@ namespace MagitekStratagemPlugin
       {
         ImGui.Indent();
         ImGui.Text($"Closest Target: {plugin.ClosestMatch?.Name} - {plugin.ClosestMatch?.Address.ToString("X")}");
+        ImGui.Text($"Is Raycasted: {plugin.IsRaycasted}");
 
         var softTarget = Service.TargetManager.SoftTarget;
         if (softTarget != null)

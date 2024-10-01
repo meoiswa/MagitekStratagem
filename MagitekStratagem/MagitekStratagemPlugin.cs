@@ -33,8 +33,6 @@ namespace MagitekStratagemPlugin
     private const string commandName = "/magiteks";
     private const string overlayCommandName = "/magiteksoverlay";
 
-    private unsafe uint? lastHighlightEntityId = null;
-
     private bool autoStarted;
 
     public IDalamudPluginInterface PluginInterface { get; init; }
@@ -47,6 +45,7 @@ namespace MagitekStratagemPlugin
     public ITrackerService? TrackerService { get; set; }
     public TrackerServiceType? LastType { get; set; } = null;
     public IGameObject? ClosestMatch { get; private set; }
+    public IGameObject? LastHighlighted { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
     public bool ErrorHooking { get; private set; } = false;
     public bool ErrorNoTobii { get; private set; } = false;
@@ -392,18 +391,8 @@ namespace MagitekStratagemPlugin
       TrackerService?.Dispose();
       TrackerService = null;
 
-      unsafe
-      {
-        if (lastHighlightEntityId.HasValue && HighlightGameObjectWithColor != null)
-        {
-          var obj = FindGameObject(lastHighlightEntityId.Value);
-          if (obj != null)
-          {
-            HighlightGameObjectWithColor(obj.Address, 0);
-          }
-          lastHighlightEntityId = null;
-        }
-      }
+      ClosestMatch = null;
+      UpdateHighlight();
 
       selectInitialTabTargetHook?.Dispose();
       selectTabTargetConeHook?.Dispose();
@@ -438,6 +427,7 @@ namespace MagitekStratagemPlugin
       }
 
       HighlightGameObjectWithColorDelegate(gameObject, color);
+
     }
 
     public void SaveConfiguration()
@@ -478,7 +468,7 @@ namespace MagitekStratagemPlugin
       SetVisible(!Configuration.IsVisible);
     }
 
-    private unsafe IGameObject? FindGameObject(uint entityId)
+    private unsafe IGameObject? FindGameObject(ulong gameObjectId)
     {
       var objectTable = Service.ObjectTable;
       var total = objectTable.Count();
@@ -489,7 +479,7 @@ namespace MagitekStratagemPlugin
         {
           continue;
         }
-        if (obj.EntityId == entityId)
+        if (obj.GameObjectId == gameObjectId)
         {
           return obj;
         }
@@ -530,7 +520,6 @@ namespace MagitekStratagemPlugin
     public void OnUpdate(IFramework framework)
     {
       var player = Service.ClientState.LocalPlayer;
-      IGameObject? lastHighlight = GetLastHighlight();
 
       InitializeTrackerService();
 
@@ -544,27 +533,10 @@ namespace MagitekStratagemPlugin
 
           if (Service.Condition.Any() && player != null && !WatchingAnyCutscene())
           {
-            ProcessGaze(player, lastHighlight);
+            ProcessGaze(player);
           }
         }
       }
-      else
-      {
-        if (!WatchingAnyCutscene())
-        {
-          // TODO: Something is broken with this, it doesn't clear the last highlight correctly.
-          ClearLastHighlight(lastHighlight);
-        }
-      }
-    }
-
-    private IGameObject? GetLastHighlight()
-    {
-      if (lastHighlightEntityId.HasValue)
-      {
-        return FindGameObject(lastHighlightEntityId.Value);
-      }
-      return null;
     }
 
     private void HandleTracking()
@@ -577,7 +549,7 @@ namespace MagitekStratagemPlugin
       }
     }
 
-    private void ProcessGaze(IGameObject player, IGameObject? lastHighlight)
+    private void ProcessGaze(IGameObject player)
     {
       unsafe
       {
@@ -595,7 +567,7 @@ namespace MagitekStratagemPlugin
           DecayHeat();
         }
 
-        UpdateHighlight(lastHighlight);
+        UpdateHighlight();
       }
     }
 
@@ -683,41 +655,26 @@ namespace MagitekStratagemPlugin
       }
     }
 
-    private void UpdateHighlight(IGameObject? lastHighlight)
+    private void UpdateHighlight()
     {
-      if (ClosestMatch != null)
-      {
-        UpdateHighlightColor(lastHighlight);
-        lastHighlightEntityId = ClosestMatch.EntityId;
-      }
-      else if (lastHighlight != null)
-      {
-        HighlightGameObjectWithColor(lastHighlight.Address, 0);
-        lastHighlightEntityId = null;
-      }
-    }
+      var lastHighlight = LastHighlighted; //GetLastHighlight();
 
-    private void UpdateHighlightColor(IGameObject? lastHighlight)
-    {
       if (ClosestMatch != null)
       {
-        if (lastHighlight != null && lastHighlight.EntityId != ClosestMatch.EntityId)
+        if (lastHighlight != null && ClosestMatch != lastHighlight)
         {
           HighlightGameObjectWithColor(lastHighlight.Address, 0);
-          lastHighlightEntityId = null;
         }
-        HighlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
-      }
-    }
 
-    private void ClearLastHighlight(IGameObject? lastHighlight)
-    {
-      unsafe
+        HighlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
+        LastHighlighted = ClosestMatch;
+      }
+      else
       {
         if (lastHighlight != null)
         {
           HighlightGameObjectWithColor(lastHighlight.Address, 0);
-          lastHighlightEntityId = null;
+          LastHighlighted = null;
         }
       }
     }
