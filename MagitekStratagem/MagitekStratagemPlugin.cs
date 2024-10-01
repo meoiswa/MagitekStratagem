@@ -437,7 +437,7 @@ namespace MagitekStratagemPlugin
         return;
       }
 
-      HighlightGameObjectWithColor(gameObject, color);
+      HighlightGameObjectWithColorDelegate(gameObject, color);
     }
 
     public void SaveConfiguration()
