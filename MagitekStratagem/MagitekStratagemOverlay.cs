@@ -1,6 +1,5 @@
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
-using MagitekStratagemPlugin.Tobii;
 using System;
 using System.Numerics;
 
@@ -61,26 +60,6 @@ namespace MagitekStratagemPlugin
       dl.AddCircle(gazeCoord, plugin.Configuration.GazeCircleRadius, white, plugin.Configuration.GazeCircleSegments, whiteThick);
     }
 
-    public void DrawPoint(Point point, ImDrawListPtr dl, uint color)
-    {
-      var size = ImGui.GetIO().DisplaySize;
-      var xp = point.X * (size.X / 2) + (size.X / 2);
-      var yp = -point.Y * (size.Y / 2) + (size.Y / 2);
-      var pixelCoord = new Vector2(xp, yp);
-
-      var black = ImGui.GetColorU32(new Vector4(0, 0, 0, 1));
-
-      const float whiteThick = 3f;
-      const float blackThick = 1.5f;
-
-      const int radius = 10;
-      const int segments = 10;
-
-      dl.AddCircle(pixelCoord, radius + blackThick, black, segments, blackThick);
-      dl.AddCircle(pixelCoord, radius - blackThick, black, segments, blackThick);
-      dl.AddCircle(pixelCoord, radius, color, segments, whiteThick);
-    }
-
     public override void PreDraw()
     {
       base.PreDraw();
@@ -92,12 +71,12 @@ namespace MagitekStratagemPlugin
 
     public override void Draw()
     {
-      if (plugin.TrackerService == null || (!plugin.Configuration.IsVisible && !plugin.Configuration.OverlayEnabled))
+      if (plugin.ActiveTracker == null || (!plugin.Configuration.IsVisible && !plugin.Configuration.OverlayEnabled))
       {
         return;
       }
 
-      DrawBubbles(plugin.TrackerService.LastGazeX, plugin.TrackerService.LastGazeY, plugin.TrackerService.LastGazeX, plugin.TrackerService.LastGazeY);
+      DrawBubbles(plugin.ActiveTracker.LastGazeX, plugin.ActiveTracker.LastGazeY, plugin.ActiveTracker.LastGazeX, plugin.ActiveTracker.LastGazeY);
     }
   }
 }

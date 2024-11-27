@@ -2,14 +2,12 @@
 using System.IO;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
-using Dalamud.IoC;
 using Dalamud.Plugin;
 using Newtonsoft.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using GameObjectStruct = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 using System.Numerics;
 using ImGuiNET;
-using System.Runtime.InteropServices;
 using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using System.Linq;
@@ -17,12 +15,9 @@ using System.Collections.Generic;
 using Dalamud.Plugin.Services;
 using System.Text.RegularExpressions;
 using Dalamud.Utility.Signatures;
-using Dalamud.Game.Config;
 using FFXIVClientStructs.FFXIV.Client.UI;
-using MagitekStratagemPlugin.Tobii;
-using MagitekStratagemPlugin.Eyeware;
-using Dalamud.Game.Gui.PartyFinder.Types;
 using Dalamud.Game.ClientState.Conditions;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace MagitekStratagemPlugin
 {
@@ -33,8 +28,6 @@ namespace MagitekStratagemPlugin
     private const string commandName = "/magiteks";
     private const string overlayCommandName = "/magiteksoverlay";
 
-    private bool autoStarted;
-
     public IDalamudPluginInterface PluginInterface { get; init; }
     public ICommandManager CommandManager { get; init; }
     public Configuration Configuration { get; init; }
@@ -42,8 +35,8 @@ namespace MagitekStratagemPlugin
     public Random Random { get; }
     public MagitekStratagemUI Window { get; init; }
     public MagitekStratagemOverlay Overlay { get; init; }
-    public ITrackerService? TrackerService { get; set; }
-    public TrackerServiceType? LastType { get; set; } = null;
+    public SignalRService SignalRService { get; set; }
+    public TrackerService? ActiveTracker { get; set; } = null;
     public IGameObject? ClosestMatch { get; private set; }
     public IGameObject? LastHighlighted { get; private set; }
     public bool IsRaycasted { get; private set; } = false;
@@ -188,28 +181,7 @@ namespace MagitekStratagemPlugin
       pluginInterface.Create<Service>();
       PluginInterface = pluginInterface;
 
-
-      try
-      {
-        ResolveTobiiGameIntegrationDll();
-      }
-      catch (Exception ex)
-      {
-        Service.PluginLog.Error($"Error attempting to resolve Tobii Game Integration DLL's path: {ex.Message}");
-        ErrorNoTobii = true;
-      }
-
-      try
-      {
-        ResolveEyewareDll();
-      }
-      catch (Exception ex)
-      {
-        Service.PluginLog.Error($"Error attempting to resolve Eyeware DLL's path: {ex.Message}");
-        ErrorNoEyeware = true;
-      }
-
-      SetDllResolvers();
+      SignalRService = new SignalRService();
 
       CommandManager = commandManager;
       WindowSystem = new("MagitekStratagemPlugin");
@@ -262,115 +234,30 @@ namespace MagitekStratagemPlugin
       PluginInterface.UiBuilder.OpenMainUi += DrawConfigUI;
     }
 
-    private void ResolveTobiiGameIntegrationDll()
+    private void UpdateSelectedTracker()
     {
-      var tobiiDir = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TobiiGameHub");
-      if (!Path.Exists(tobiiDir))
+      if (SignalRService.State != HubConnectionState.Connected)
       {
-        throw new TobiiGameHubNotFoundException();
+        ActiveTracker = null;
+        return;
       }
-      var tobiiPath = LocateNewestTobiiGameHub(tobiiDir);
+      else if (
+        (ActiveTracker == null && Configuration.SelectedTrackerFullName != string.Empty)
+        || (ActiveTracker != null && Configuration.SelectedTrackerFullName != ActiveTracker.FullName))
+      {
+        if (ActiveTracker != null)
+        {
+          SignalRService.StopTracking(ActiveTracker);
+        }
 
-      if (tobiiPath != null)
-      {
-        Service.PluginLog.Verbose("Searching potential Tobii GameHub install path", tobiiPath);
-        if (Path.Exists(tobiiPath))
+        var tracker = SignalRService.GetTracker(Configuration.SelectedTrackerFullName);
+        if (tracker != null)
         {
-          var lib = Path.Join(tobiiPath, StreamEngine.Library);
-          Service.PluginLog.Verbose("Loading Tobii Stream Engine DLL from " + lib);
-          tobiiGameIntegrationApix64Ptr = NativeLibrary.Load(lib);
-        }
-        else
-        {
-          throw new TobiiGameIntegrationNotFoundException();
+          ActiveTracker = tracker;
+          SignalRService.StartTracking(ActiveTracker);
         }
       }
-      else
-      {
-        Service.PluginLog.Verbose("Tobii GameHub not found.");
-      }
-    }
-
-    private void ResolveEyewareDll()
-    {
-      Service.PluginLog.Verbose($"Searching for Eyeware Tracker Client DLL...");
-      var pluginDir = PluginInterface.AssemblyLocation.Directory?.FullName;
-      Service.PluginLog.Verbose("Plugin directory: " + pluginDir);
-
-      if (pluginDir != null)
-      {
-        var lib = Path.Join(pluginDir, TrackerClient.Library);
-        Service.PluginLog.Verbose("Loading Eyeware Tracker Client DLL from " + lib);
-        eyewareTrackerClientApix64Ptr = NativeLibrary.Load(lib);
-      }
-      else
-      {
-        Service.PluginLog.Verbose("Eyeware Tracker Client DLL not found.");
-      }
-    }
-
-    private void SetDllResolvers()
-    {
-      NativeLibrary.SetDllImportResolver(typeof(MagitekStratagemPlugin).Assembly, (libraryName, assembly, searchPath) =>
-      {
-        if (libraryName == StreamEngine.Library)
-        {
-          return this.tobiiGameIntegrationApix64Ptr;
-        }
-        if (libraryName == TrackerClient.Library)
-        {
-          return this.eyewareTrackerClientApix64Ptr;
-        }
-        return IntPtr.Zero;
-      });
-    }
-
-    private void InitializeTrackerService()
-    {
-      try
-      {
-        if (Configuration.TrackerServiceType == TrackerServiceType.Tobii && LastType != TrackerServiceType.Tobii)
-        {
-          if (TrackerService != null)
-          {
-            TrackerService.StopTracking();
-            TrackerService.Dispose();
-          }
-          LastType = TrackerServiceType.Tobii;
-          TrackerService = new TobiiService();
-          autoStarted = false;
-        }
-        else if (Configuration.TrackerServiceType == TrackerServiceType.BeamEye && LastType != TrackerServiceType.BeamEye)
-        {
-          if (TrackerService != null)
-          {
-            TrackerService.StopTracking();
-            TrackerService.Dispose();
-          }
-          LastType = TrackerServiceType.BeamEye;
-          TrackerService = new BeamService();
-          autoStarted = false;
-        }
-        else if (Configuration.TrackerServiceType == TrackerServiceType.Fake && LastType != TrackerServiceType.Fake)
-        {
-          if (TrackerService != null)
-          {
-            TrackerService.StopTracking();
-            TrackerService.Dispose();
-          }
-          LastType = TrackerServiceType.Fake;
-          TrackerService = new FakeService();
-          autoStarted = false;
-        }
-      }
-      catch (Exception ex)
-      {
-        Service.PluginLog.Error(ex.Message);
-        LastType = TrackerServiceType.Fake;
-        TrackerService = new FakeService();
-        autoStarted = false;
-      }
-    }
+    } 
 
     private void EnableHook<T>(Hook<T>? hook, string hookName) where T : Delegate
     {
@@ -388,8 +275,7 @@ namespace MagitekStratagemPlugin
 
     public void Dispose()
     {
-      TrackerService?.Dispose();
-      TrackerService = null;
+      SignalRService.Dispose();
 
       ClosestMatch = null;
       UpdateHighlight();
@@ -460,7 +346,6 @@ namespace MagitekStratagemPlugin
     private void DrawUI()
     {
       WindowSystem.Draw();
-      TrackerService?.Draw();
     }
 
     private void DrawConfigUI()
@@ -521,16 +406,14 @@ namespace MagitekStratagemPlugin
     {
       var player = Service.ClientState.LocalPlayer;
 
-      InitializeTrackerService();
+      UpdateSelectedTracker();
 
-      if (Configuration.Enabled && TrackerService != null)
+      if (Configuration.Enabled && ActiveTracker != null)
       {
         HandleTracking();
 
-        if (TrackerService.IsTracking)
+        if (ActiveTracker.IsTracking)
         {
-          TrackerService.Update();
-
           if (Service.Condition.Any() && player != null && !WatchingAnyCutscene())
           {
             ProcessGaze(player);
@@ -541,11 +424,9 @@ namespace MagitekStratagemPlugin
 
     private void HandleTracking()
     {
-      if (TrackerService != null && !TrackerService.IsTracking && Configuration.AutoStartTracking && !autoStarted)
+      if (ActiveTracker != null && !ActiveTracker.IsTracking)
       {
-        TrackerService.StartTracking();
-        autoStarted = true;
-        Service.PluginLog.Debug("Tracking auto-start.");
+        SignalRService.StartTracking(ActiveTracker);
       }
     }
 
@@ -574,8 +455,8 @@ namespace MagitekStratagemPlugin
     private Vector2 CalculateGazeScreenPos(Vector2 size)
     {
       return new Vector2(
-          TrackerService!.LastGazeX * (size.X / 2) + (size.X / 2),
-          -TrackerService!.LastGazeY * (size.Y / 2) + (size.Y / 2));
+          ActiveTracker!.LastGazeX * (size.X / 2) + (size.X / 2),
+          -ActiveTracker!.LastGazeY * (size.Y / 2) + (size.Y / 2));
     }
 
     private void UpdateClosestMatch(IGameObject player, Vector3 worldPos)

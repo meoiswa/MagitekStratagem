@@ -8,13 +8,11 @@ namespace MagitekStratagemPlugin
   [Serializable]
   public class Configuration : IPluginConfiguration
   {
-    public virtual int Version { get; set; } = 0;
+    public virtual int Version { get; set; } = 1;
 
     public bool Enabled { get; set; } = true;
 
     public bool IsVisible { get; set; } = false;
-
-    public bool AutoStartTracking { get; set; } = true;
 
     public int HighlightColor { get; set; } = 2;
     public int ProximityColor { get; set; } = 5;
@@ -33,7 +31,8 @@ namespace MagitekStratagemPlugin
     public bool OverrideEnemyTargetAlways { get; set; } = false;
     public bool OverrideSoftTarget { get; set; } = true;
     public bool OverrideSoftTargetAlways { get; set; } = false;
-    public TrackerServiceType TrackerServiceType { get; set; } = TrackerServiceType.Tobii;
+    public string SelectedTrackerFullName { get; set; } = string.Empty;
+    public string SelectedTrackerName { get; set; } = string.Empty;
 
     // the below exist just to make saving less cumbersome
     [NonSerialized]

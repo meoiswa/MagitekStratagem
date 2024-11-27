@@ -1,10 +1,7 @@
-using Dalamud.Game.Config;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
-using MagitekStratagemPlugin.Eyeware;
-using MagitekStratagemPlugin.Tobii;
 using System;
-using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 
 namespace MagitekStratagemPlugin
@@ -44,10 +41,15 @@ namespace MagitekStratagemPlugin
         ImGui.Indent();
         ImGui.TextWrapped("Select the service to use for eye tracking.");
 
-        var serviceType = (int)plugin.Configuration.TrackerServiceType;
-        if (ImGui.Combo("##service", ref serviceType, "Tobii\0Eyeware BeamEye\0"))
+        var trackers = plugin.SignalRService.GetTrackers();
+        var array = trackers.OrderBy(x => x.FullName).ToArray();
+        var current = Array.FindIndex(array, x => x.FullName == plugin.Configuration.SelectedTrackerFullName);
+        var namesString = string.Join("\0", array.Select(x => x.Name));
+
+        if (ImGui.Combo("##service", ref current, namesString))
         {
-          plugin.Configuration.TrackerServiceType = (TrackerServiceType)serviceType;
+          plugin.Configuration.SelectedTrackerFullName = array[current].FullName;
+          plugin.Configuration.SelectedTrackerName = array[current].Name;
           plugin.Configuration.Save();
         }
 
@@ -64,26 +66,25 @@ namespace MagitekStratagemPlugin
           + " post on the official Dalamud Discord for more information.");
         ImGui.NewLine();
 
-        if (plugin.TrackerService == null)
+        if (plugin.ActiveTracker == null)
         {
           ImGui.TextWrapped("No service selected.");
         }
-        if (plugin.TrackerService is FakeService)
+        else if (plugin.ActiveTracker.Name == "Fake Eye")
         {
           ImGui.TextWrapped("Fake Service is selected. Uses your mouse cursor as a fake gaze tracker.");
         }
-        else if (plugin.TrackerService is TobiiService)
+        else if (plugin.ActiveTracker.Name == "Tobii")
         {
           ImGui.TextWrapped("Tobii Eye Tracker 5");
           ImGui.TextWrapped("Next generation head and eye tracking");
           ImGui.NewLine();
           ImGui.TextWrapped("Disclaimer: This plugin is not officially supported by Tobii. Use at your own risk."
-          + " Due to the nature of hot-loading Tobii SDK DLLs, this plugin may crash your game unexpectedly. "
           + " You must have Tobii Game Hub installed, and use a Tobii Eye Tracker that is compatible (4 or 5).");
           ImGui.TextWrapped("In compliance with Tobii guidelines, this plugin will not record nor share Eye Tracking"
-          + "a data with any other software component, and Eye Tracking data is immediately disposed after use.");
+          + "data with any other software component, and Eye Tracking data is immediately disposed after use.");
         }
-        else if (plugin.TrackerService is BeamService)
+        else if (plugin.ActiveTracker.Name == "Eyeware Beam")
         {
           ImGui.TextWrapped("Eyeware Beam Eye Tracker: Turn Your Webcam into an Eye Tracker");
           ImGui.TextWrapped("Say goodbye to bulky hardware trackers for gaming. Upgrade your webcam with AI-powered eye tracking software now!");
@@ -116,6 +117,20 @@ namespace MagitekStratagemPlugin
     {
       ImGui.NewLine();
 
+      if (plugin.SignalRService.State != Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected)
+      {
+        ImGui.Text("SignalR Service is not connected.");
+
+        ImGui.TextWrapped("MagitekStratagemServer is required for this plugin to work."
+          + "\nCurrently only available as a separate download on GitHub."
+          + "\nhttps://github.com/meoiswa/MagitekStratagemServer/releases/tag/v0.0.1");
+        if (ImGui.Button("Reconnect"))
+        {
+          plugin.SignalRService.Start();
+        }
+        return;
+      }
+
       DrawServiceSelectorSection();
 
       DrawDisclosureSection();
@@ -130,25 +145,9 @@ namespace MagitekStratagemPlugin
       }
 #endif
 
-      if (plugin.TrackerService == null)
+      if (plugin.ActiveTracker == null)
       {
-        ImGui.Text("Tobii GameHub Not Found");
-        if (ImGui.Button("Load Fake Service"))
-        {
-          plugin.TrackerService = new FakeService();
-        }
-        return;
-      }
-
-      if (plugin.Configuration.TrackerServiceType == TrackerServiceType.Tobii && plugin.ErrorNoTobii)
-      {
-        ImGui.Text("Tobii StreamEngine API DLLs Not Found");
-        return;
-      }
-
-      if (plugin.Configuration.TrackerServiceType == TrackerServiceType.BeamEye && plugin.ErrorNoEyeware)
-      {
-        ImGui.Text("Eyeware Beam Eye Tracker DLLs Not Found");
+        ImGui.Text("No Tracker Selected");
         return;
       }
 
@@ -158,37 +157,6 @@ namespace MagitekStratagemPlugin
       DrawAppareanceSettingsSection();
       DrawGazeCircleSettingsSection();
       DrawRaycastSettingsSection();
-
-      ImGui.Separator();
-
-      if (plugin.Configuration.Enabled)
-      {
-        if (!plugin.TrackerService.IsTracking)
-        {
-          if (ImGui.Button("Start Tracking"))
-          {
-            plugin.TrackerService.StartTracking();
-          }
-        }
-        else
-        {
-          if (ImGui.Button("Stop Tracking"))
-          {
-            plugin.TrackerService.StopTracking();
-          }
-        }
-      }
-
-      ImGui.SameLine();
-
-      var autoStart = plugin.Configuration.AutoStartTracking;
-      if (ImGui.Checkbox("Auto-Start", ref autoStart))
-      {
-        plugin.Configuration.AutoStartTracking = autoStart;
-        plugin.Configuration.Save();
-      }
-      ImGui.SameLine();
-      ImGui.Text("(Start tracking on game start)");
 
 #if DEBUG
       DrawDebugSection();
@@ -212,23 +180,27 @@ namespace MagitekStratagemPlugin
 
         ImGui.Separator();
 
-        ImGui.Text("Tracking: " + plugin.TrackerService?.IsTracking);
-        ImGui.Text("Gaze:");
-        if (plugin.TrackerService != null)
+        if (plugin.ActiveTracker != null)
         {
-          ImGui.Text($"LastTime: {plugin.TrackerService.LastGazeTimestamp}");
-          ImGui.Text($"LastX: {plugin.TrackerService.LastGazeX}");
-          ImGui.Text($"LastY: {plugin.TrackerService.LastGazeY}");
+          ImGui.Text("Tracking: " + plugin.ActiveTracker.IsTracking);
+          ImGui.Text("Gaze:");
+          ImGui.Text($"LastTime: {plugin.ActiveTracker.LastGazeTimestamp}");
+          ImGui.Text($"LastX: {plugin.ActiveTracker.LastGazeX}");
+          ImGui.Text($"LastY: {plugin.ActiveTracker.LastGazeY}");
         }
-
-        ImGui.Separator();
-
-        ImGui.Text($"Heatmap: {plugin.GameObjectHeatMap.Count}");
-        foreach (var gameObjectHeat in plugin.GameObjectHeatMap)
+        else
         {
-          ImGui.Text($"{gameObjectHeat.Key} - {gameObjectHeat.Value}");
+          ImGui.Text("No Active Tracker");
+
+          ImGui.Separator();
+
+          ImGui.Text($"Heatmap: {plugin.GameObjectHeatMap.Count}");
+          foreach (var gameObjectHeat in plugin.GameObjectHeatMap)
+          {
+            ImGui.Text($"{gameObjectHeat.Key} - {gameObjectHeat.Value}");
+          }
+          ImGui.Unindent();
         }
-        ImGui.Unindent();
       }
     }
 
