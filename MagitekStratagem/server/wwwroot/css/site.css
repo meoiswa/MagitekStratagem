@@ -1,0 +1,26 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+#status {
+    margin: 20px;
+}
+
+#screen {
+    width: 640px;
+    height: 360px;
+    border: 1px solid black;
+    margin: 20px auto;
+    position: relative;
+}
+
+#eyePosition {
+    width: 10px;
+    height: 10px;
+    background-color: red;
+    border-radius: 50%;
+    position: absolute;
+}

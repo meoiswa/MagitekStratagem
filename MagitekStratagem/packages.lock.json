@@ -134,6 +134,7 @@
         "resolved": "8.0.0",
         "contentHash": "CMaFr7v+57RW7uZfZkPExsPB6ljwzhjACWW1gfU35Y56rk72B/Wu+sTqxVmGSk4SFUlPc3cjeKND0zktziyjBA=="
       }
-    }
+    },
+    "net8.0-windows7.0/win-x64": {}
   }
 }

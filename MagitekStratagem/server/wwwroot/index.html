@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagitekStratagem Status</title>
+    <link rel="stylesheet" href="css/site.css">
+</head>
+
+<body>
+    <h1>MagitekStratagem Status</h1>
+    <div id="status">
+        <p>Connection Status: <span id="connectionStatus">Disconnected</span></p>
+        <p>Eye Tracking: <span id="eyeTrackingStatus">Not Tracking</span></p>
+    </div>
+    <div id="buttons">
+        <button id="startButton" onclick="startEyeTracking()">Start Eye Tracking</button>
+        <button id="stopButton" onclick="stopEyeTracking()">Stop Eye Tracking</button>
+    </div>
+    <div id="services">
+        <select id="servicesSelect">
+        </select>
+    </div>
+    <div id="screen">
+        <div id="eyePosition" style="display: none;"></div>
+    </div>
+
+    <script src="js/signalr/dist/browser/signalr.js"></script>
+    <script src="js/site.js"></script>
+</body>
+
+</html>

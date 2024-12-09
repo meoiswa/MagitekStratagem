@@ -181,7 +181,7 @@ namespace MagitekStratagemPlugin
       pluginInterface.Create<Service>();
       PluginInterface = pluginInterface;
 
-      SignalRService = new SignalRService();
+      SignalRService = new SignalRService(pluginInterface);
 
       CommandManager = commandManager;
       WindowSystem = new("MagitekStratagemPlugin");

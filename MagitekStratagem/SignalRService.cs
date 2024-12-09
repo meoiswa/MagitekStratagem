@@ -1,9 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.Configuration;
+using Dalamud.Plugin;
 using Microsoft.AspNetCore.SignalR.Client;
 
 namespace MagitekStratagemPlugin
@@ -49,12 +51,16 @@ namespace MagitekStratagemPlugin
   public sealed class SignalRService
   {
     private Dictionary<string, TrackerService> trackers = new();
+    private readonly IDalamudPluginInterface pluginInterface;
     private HubConnection connection;
+
+    private Process? serverProcess;
 
     public HubConnectionState State => connection.State;
 
-    public SignalRService()
+    public SignalRService(IDalamudPluginInterface pluginInterface)
     {
+      this.pluginInterface = pluginInterface;
       connection = new HubConnectionBuilder()
                 .WithUrl("http://localhost:44244/hub")
                 .WithAutomaticReconnect()
@@ -86,12 +92,62 @@ namespace MagitekStratagemPlugin
         GetOrCreateTracker(fullName).Process(false);
       });
 
+      RunServer();
       Start();
+    }
+
+    public void RunServer()
+    {
+      KillServer();
+
+      var path = pluginInterface.AssemblyLocation.FullName.Replace(".dll", ".exe");
+      Service.PluginLog.Info("Starting server process at " + path);
+      serverProcess = new Process
+      {
+        StartInfo = new ProcessStartInfo
+        {
+          FileName = path,
+          UseShellExecute = false,
+          CreateNoWindow = true,
+          WorkingDirectory = Path.Combine(pluginInterface.AssemblyLocation.DirectoryName!, "server"),
+        }
+      };
+      try
+      {
+        serverProcess.Start();
+      }
+      catch (Exception ex)
+      {
+        Service.PluginLog.Error(ex, "Failed to start server process");
+      }
+    }
+
+    public void KillServer()
+    {
+      if (serverProcess != null && serverProcess.HasExited == false)
+      {
+        try
+        {
+          serverProcess.Kill();
+        }
+        catch (Exception ex)
+        {
+          Service.PluginLog.Error(ex, "Failed to kill existing server process");
+        }
+      }
+
+      serverProcess = null;
     }
 
     public async void Start()
     {
       Service.PluginLog.Debug("Start");
+
+      if (serverProcess == null || serverProcess.HasExited)
+      {
+        RunServer();
+      }
+
       if (connection.State == HubConnectionState.Disconnected)
       {
         try
@@ -182,6 +238,7 @@ namespace MagitekStratagemPlugin
           }
           await connection.DisposeAsync();
         }
+        KillServer();
       }
     }
 
