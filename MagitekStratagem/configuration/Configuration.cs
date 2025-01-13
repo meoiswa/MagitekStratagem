@@ -1,7 +1,5 @@
 using Dalamud.Configuration;
-using Dalamud.Plugin;
-using System;
-using System.Collections.Generic;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 
 namespace MagitekStratagemPlugin
 {
@@ -14,8 +12,8 @@ namespace MagitekStratagemPlugin
 
     public bool IsVisible { get; set; } = false;
 
-    public int HighlightColor { get; set; } = 2;
-    public int ProximityColor { get; set; } = 5;
+    public ObjectHighlightColor HighlightColor { get; set; } = ObjectHighlightColor.Green;
+    public ObjectHighlightColor ProximityColor { get; set; } = ObjectHighlightColor.Orange;
 
     public bool OverlayEnabled { get; set; } = false;
 

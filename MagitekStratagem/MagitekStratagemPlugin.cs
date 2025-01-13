@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using Dalamud.Game.Command;
+﻿using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Newtonsoft.Json;
@@ -10,14 +8,13 @@ using System.Numerics;
 using ImGuiNET;
 using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
-using System.Linq;
-using System.Collections.Generic;
 using Dalamud.Plugin.Services;
 using System.Text.RegularExpressions;
 using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using Dalamud.Game.ClientState.Conditions;
 using Microsoft.AspNetCore.SignalR.Client;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 
 namespace MagitekStratagemPlugin
 {
@@ -43,10 +40,6 @@ namespace MagitekStratagemPlugin
     public bool ErrorHooking { get; private set; } = false;
     public bool ErrorNoTobii { get; private set; } = false;
     public bool ErrorNoEyeware { get; private set; } = false;
-
-    [Signature("E8 ?? ?? ?? FF 48 8D 8B ?? ?? 00 00 40 0F B6 D6 E8 ?? ?? ?? ?? 40 84 FF")]
-    private readonly delegate* unmanaged<IntPtr, byte, void> HighlightGameObjectWithColorDelegate = null;
-
 
     [Signature("E8 ?? ?? ?? ?? 84 C0 44 8B C3")]
     private readonly delegate* unmanaged<InputManager*, int, bool> IsInputPressed = null;
@@ -257,7 +250,7 @@ namespace MagitekStratagemPlugin
           SignalRService.StartTracking(ActiveTracker);
         }
       }
-    } 
+    }
 
     private void EnableHook<T>(Hook<T>? hook, string hookName) where T : Delegate
     {
@@ -303,17 +296,6 @@ namespace MagitekStratagemPlugin
         Service.Condition[ConditionFlag.OccupiedInEvent] ||
         Service.Condition[ConditionFlag.WatchingCutscene] ||
         Service.Condition[ConditionFlag.WatchingCutscene78];
-    }
-
-    private void HighlightGameObjectWithColor(IntPtr gameObject, byte color)
-    {
-      if (HighlightGameObjectWithColorDelegate == null || WatchingAnyCutscene())
-      {
-        return;
-      }
-
-      HighlightGameObjectWithColorDelegate(gameObject, color);
-
     }
 
     public void SaveConfiguration()
@@ -544,17 +526,17 @@ namespace MagitekStratagemPlugin
       {
         if (lastHighlight != null && ClosestMatch != lastHighlight)
         {
-          HighlightGameObjectWithColor(lastHighlight.Address, 0);
+          ((GameObjectStruct*)lastHighlight.Address)->Highlight(0);
         }
 
-        HighlightGameObjectWithColor(ClosestMatch.Address, IsRaycasted ? (byte)Configuration.HighlightColor : (byte)Configuration.ProximityColor);
+        ((GameObjectStruct*)ClosestMatch.Address)->Highlight(IsRaycasted ? Configuration.HighlightColor : Configuration.ProximityColor);
         LastHighlighted = ClosestMatch;
       }
       else
       {
         if (lastHighlight != null)
         {
-          HighlightGameObjectWithColor(lastHighlight.Address, 0);
+          ((GameObjectStruct*)lastHighlight.Address)->Highlight(0);
           LastHighlighted = null;
         }
       }

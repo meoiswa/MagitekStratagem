@@ -1,7 +1,6 @@
 using Dalamud.Interface.Windowing;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using ImGuiNET;
-using System;
-using System.Linq;
 using System.Numerics;
 
 namespace MagitekStratagemPlugin
@@ -331,11 +330,11 @@ namespace MagitekStratagemPlugin
     private void DrawProximityColorCombo()
     {
       ImGui.Text("Highlight color for proximity target");
-      var proximityColor = plugin.Configuration.ProximityColor;
-      if (ImGui.Combo("##color", ref proximityColor, "None\0Red\0Green\0Blue\0Yellow\0Orange\0Magenta\0Black\0"))
+      var proximityColor = (int)plugin.Configuration.ProximityColor;
+      if (ImGui.Combo("##color", ref proximityColor, "None\0Red\0Green\0Blue\0Yellow\0Orange\0Magenta\0"))
       {
         proximityColor = ClampColorValue(proximityColor);
-        plugin.Configuration.ProximityColor = proximityColor;
+        plugin.Configuration.ProximityColor = (ObjectHighlightColor)proximityColor;
         plugin.Configuration.Save();
       }
     }
@@ -348,11 +347,11 @@ namespace MagitekStratagemPlugin
       }
 
       ImGui.Text("Highlight color for raycasted target");
-      var highlightColor = plugin.Configuration.HighlightColor;
-      if (ImGui.Combo("##gazecolor", ref highlightColor, "None\0Red\0Green\0Blue\0Yellow\0Orange\0Magenta\0Black\0"))
+      var highlightColor = (int)plugin.Configuration.HighlightColor;
+      if (ImGui.Combo("##gazecolor", ref highlightColor, "None\0Red\0Green\0Blue\0Yellow\0Orange\0Magenta\0"))
       {
         highlightColor = ClampColorValue(highlightColor);
-        plugin.Configuration.HighlightColor = highlightColor;
+        plugin.Configuration.HighlightColor = (ObjectHighlightColor)highlightColor;
         plugin.Configuration.Save();
       }
 
