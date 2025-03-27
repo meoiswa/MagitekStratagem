@@ -29,6 +29,11 @@
     <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
   </PropertyGroup>
 
+  <!-- We only download windows runtimes and need natives for windows -->
+  <PropertyGroup Condition=" '$(IsPlogonBuild)' == 'True' ">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
   <ItemGroup>
     <Content Include="images\icon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
