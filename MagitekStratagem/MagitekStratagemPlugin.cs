@@ -47,13 +47,13 @@ namespace MagitekStratagemPlugin
 
     private delegate IntPtr SelectInitialTabTargetDelegate(IntPtr targetSystem, IntPtr gameObjects, IntPtr camera, IntPtr a4);
 
-    [Signature("E8 ?? ?? ?? ?? EB 16 44 0F B6 CD", DetourName = nameof(SelectInitialTabTargetDetour))]
+    [Signature("E8 ?? ?? ?? ?? EB 11 44 0F B6 CD", DetourName = nameof(SelectInitialTabTargetDetour))]
     private readonly Hook<SelectInitialTabTargetDelegate>? selectInitialTabTargetHook = null;
 
 
     private delegate IntPtr SelectTabTargetDelegate(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects, bool inverse, IntPtr a5);
 
-    [Signature("E8 ?? ?? ?? ?? EB 47 41 B1 01", DetourName = nameof(SelectTabTargetConeDetour))]
+    [Signature("E8 ?? ?? ?? ?? EB 4C 41 B1 01", DetourName = nameof(SelectTabTargetConeDetour))]
     private readonly Hook<SelectTabTargetDelegate>? selectTabTargetConeHook = null;
 
     [Signature("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 29", DetourName = nameof(SelectTabTargetIgnoreDepthDetour))]
