@@ -7,7 +7,7 @@ namespace MagitekStratagemServer.Trackers.Tobii
     internal class TobiiService : BaseTrackerService
     {
         private readonly Api api;
-        private readonly Device device;
+        private readonly Device? device;
 
         public TobiiService(ILoggerFactory loggerFactory) : base(loggerFactory)
         {
@@ -25,6 +25,12 @@ namespace MagitekStratagemServer.Trackers.Tobii
                 logger.LogTrace($"Tracker: {url}");
             }
 
+            if (urls.Count == 0)
+            {
+                logger.LogError("No Tobii devices found.");
+                return;
+            }
+
             device = api.CreateDevice(urls[0]);
 
             logger.LogTrace(device.ToString());
@@ -32,6 +38,13 @@ namespace MagitekStratagemServer.Trackers.Tobii
 
         public override void DoStartTracking()
         {
+            if (device == null)
+            {
+                IsTracking = false;
+                logger.LogError("Tobii device is null. Cannot start tracking.");
+                return;
+            }
+
             IsTracking = true;
             device.Subscribe();
         }
@@ -39,12 +52,12 @@ namespace MagitekStratagemServer.Trackers.Tobii
         public override void DoStopTracking()
         {
             IsTracking = false;
-            device.Unsubscribe();
+            device?.Unsubscribe();
         }
 
         protected override void DoUpdate()
         {
-            if (device.GazeTimestamp > LastGazeTimestamp)
+            if (device?.GazeTimestamp > LastGazeTimestamp)
             {
                 // TODO: Map coordinates using window rect
                 LastGazeX = device.GazeX * 2 - 1;
