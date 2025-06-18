@@ -5,5 +5,6 @@ namespace MagitekStratagemPlugin
     Fake = -1,
     Tobii,
     BeamEye,
+    OpentrackUdp,
   }
 }

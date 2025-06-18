@@ -1,6 +1,7 @@
 using MagitekStratagemServer.Trackers;
 using MagitekStratagemServer.Trackers.Eyeware;
 using MagitekStratagemServer.Trackers.Fake;
+using MagitekStratagemServer.Trackers.OpentrackUdp;
 using MagitekStratagemServer.Trackers.Tobii;
 
 namespace MagitekStratagemServer.Services
@@ -38,6 +39,10 @@ namespace MagitekStratagemServer.Services
                 {
                     tracker = new FakeEyeService(loggerFactory);
                 }
+                else if (fullName == typeof(OpentrackUdpService).FullName)
+                {
+                    tracker = new OpentrackUdpService(loggerFactory);
+                }
 
                 if (tracker != null)
                 {
@@ -58,6 +63,7 @@ namespace MagitekStratagemServer.Services
                 typeof(FakeEyeService),
                 typeof(TobiiService),
                 typeof(BeamService),
+                typeof(OpentrackUdpService),
             };
             return types;
         }
