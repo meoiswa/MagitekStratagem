@@ -54,17 +54,26 @@ namespace MagitekStratagemServer
             var cts = new CancellationTokenSource();
             var token = cts.Token;
 
+            var skipAutoShutdown = false;
+            // Use environment variable to skip shutdown timer
+            var debugEnv = Environment.GetEnvironmentVariable("MAGITEKSTRATAGEM_DEBUG");
+            if (!string.IsNullOrEmpty(debugEnv) && debugEnv == "1")
+            {
+                skipAutoShutdown = true;
+                logger.LogInformation("MAGITEKSTRATAGEM_DEBUG is set, skipping server auto-shutdown.");
+            }
+
             Task.Run(async () =>
             {
                 while (!token.IsCancellationRequested)
                 {
                     await Task.Delay(1000, token);
                     // Check if there are any clients connected
-                    if (MagitekStratagemHub.ConnectedClients <= 0)
+                    if (MagitekStratagemHub.ConnectedClients <= 0 && !skipAutoShutdown)
                     {
                         for (int i = 10; i >= 0; i--)
                         {
-                            logger.LogInformation("No clients connected, shutting down server in " + i + " seconds.");
+                            logger.LogInformation($"No clients connected, shutting down server in {i} seconds.");
                             await Task.Delay(1000, token);
                             if (MagitekStratagemHub.ConnectedClients > 0)
                             {

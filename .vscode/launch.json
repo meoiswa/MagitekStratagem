@@ -1,0 +1,22 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C#: MagitekStratagem Server",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/MagitekStratagem/bin/x64/Debug/win-x64/MagitekStratagem.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/MagitekStratagem/bin/x64/Debug/win-x64/server",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "env": {
+                "MAGITEKSTRATAGEM_DEBUG": "1"
+            },
+            "preLaunchTask": "build"
+        }
+    ]
+}
