@@ -6,20 +6,20 @@ namespace MagitekStratagemPlugin
   public sealed class SignalRService
   {
     private Dictionary<string, TrackerService> trackers = new();
-    private readonly FileInfo assemblyLocation;
-    private readonly Configuration configuration;
     private HubConnection connection;
     private Process? serverProcess;
 
     public HubConnectionState State => connection.State;
     public TrackerService? ActiveTracker { get; private set; }
+    public FileInfo AssemblyLocation { get; }
+    public Configuration Configuration { get; }
 
     public SignalRService(
       FileInfo assemblyLocation,
       Configuration configuration)
     {
-      this.assemblyLocation = assemblyLocation;
-      this.configuration = configuration;
+      AssemblyLocation = assemblyLocation;
+      Configuration = configuration;
 
       connection = new HubConnectionBuilder()
                 .WithUrl("http://localhost:44244/hub")
@@ -60,7 +60,7 @@ namespace MagitekStratagemPlugin
     {
       KillServer();
 
-      var path = assemblyLocation.FullName.Replace(".dll", ".exe");
+      var path = AssemblyLocation.FullName.Replace(".dll", ".exe");
       Service.PluginLog.Info("Starting server process at " + path);
       serverProcess = new Process
       {
@@ -69,7 +69,7 @@ namespace MagitekStratagemPlugin
           FileName = path,
           UseShellExecute = false,
           CreateNoWindow = true,
-          WorkingDirectory = Path.Combine(assemblyLocation.DirectoryName!, "server"),
+          WorkingDirectory = Path.Combine(AssemblyLocation.DirectoryName!, "server"),
         }
       };
       try
@@ -125,7 +125,7 @@ namespace MagitekStratagemPlugin
 
     public void Update()
     {
-      if (ActiveTracker == null || ActiveTracker.FullName != configuration.SelectedTrackerFullName)
+      if (ActiveTracker == null || ActiveTracker.FullName != Configuration.SelectedTrackerFullName)
       {
         if (ActiveTracker != null)
         {
@@ -133,9 +133,9 @@ namespace MagitekStratagemPlugin
           ActiveTracker = null;
         }
 
-        if (configuration.SelectedTrackerFullName != string.Empty)
+        if (Configuration.SelectedTrackerFullName != string.Empty)
         {
-          ActiveTracker = GetTracker(configuration.SelectedTrackerFullName);
+          ActiveTracker = GetTracker(Configuration.SelectedTrackerFullName);
         }
       }
 

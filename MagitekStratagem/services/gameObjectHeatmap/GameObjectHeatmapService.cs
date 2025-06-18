@@ -5,13 +5,14 @@ namespace MagitekStratagemPlugin
     public class GameObjectHeatmapService : IDisposable
     {
         private readonly Dictionary<IntPtr, float> heatMap = new();
-        private readonly MagitekStratagemPlugin plugin;
 
         public IDictionary<IntPtr, float> HeatMap => heatMap;
 
-        public GameObjectHeatmapService(MagitekStratagemPlugin plugin)
+        public Configuration Configuration { get; }
+
+        public GameObjectHeatmapService(Configuration configuration)
         {
-            this.plugin = plugin;
+            Configuration = configuration;
         }
 
         public void AddOrUpdate(IntPtr key, float value)
@@ -28,11 +29,11 @@ namespace MagitekStratagemPlugin
             {
                 if (heatMap.ContainsKey((IntPtr)gameObject))
                 {
-                    heatMap[(IntPtr)gameObject] += plugin.Configuration.HeatIncrement;
+                    heatMap[(IntPtr)gameObject] += Configuration.HeatIncrement;
                 }
                 else
                 {
-                    heatMap[(IntPtr)gameObject] = plugin.Configuration.HeatIncrement;
+                    heatMap[(IntPtr)gameObject] = Configuration.HeatIncrement;
                 }
             }
         }

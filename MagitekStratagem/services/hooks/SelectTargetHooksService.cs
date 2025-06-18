@@ -4,10 +4,13 @@ using FFXIVClientStructs.FFXIV.Client.Game.Control;
 
 namespace MagitekStratagemPlugin
 {
+
     public unsafe class SelectTargetHooksService : IDisposable
     {
-        private readonly MagitekStratagemPlugin plugin;
-        
+        public bool ErrorHooking { get; private set; } = false;
+        public Configuration Configuration { get; }
+        public GazeService GazeService { get; }
+
         private delegate IntPtr SelectInitialTabTargetDelegate(IntPtr targetSystem, IntPtr gameObjects, IntPtr camera, IntPtr a4);
         private delegate IntPtr SelectTabTargetDelegate(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects, bool inverse, IntPtr a5);
 
@@ -23,22 +26,36 @@ namespace MagitekStratagemPlugin
         [Signature("E8 ?? ?? ?? ?? 84 C0 44 8B C3")]
         private readonly delegate* unmanaged<InputManager*, int, bool> IsInputPressed = null;
 
-        public SelectTargetHooksService(MagitekStratagemPlugin plugin)
+        public SelectTargetHooksService(GazeService gazeService, Configuration configuration)
         {
-            this.plugin = plugin;
+            Configuration = configuration;
+            GazeService = gazeService;
+
+            try
+            {
+                Service.IGameInterop.InitializeFromAttributes(this);
+            }
+            catch (Exception ex)
+            {
+                Service.PluginLog.Error(ex.Message);
+                ErrorHooking = true;
+            }
         }
 
         public void EnableHooks()
         {
-            Service.PluginLog.Information("Enabling SelectTarget Hooks...");
-            EnableHook(selectInitialTabTargetHook, "SelectInitialTabTarget");
-            EnableHook(selectTabTargetConeHook, "SelectTabTargetCone");
-            EnableHook(selectTabTargetIgnoreDepthHook, "SelectTabTargetIgnoreDepth");
-
-            if (IsInputPressed == null)
+            if (!ErrorHooking)
             {
-                Service.PluginLog.Error("Failed to hook IsInputPressed");
-                plugin.ErrorHooking = true;
+                Service.PluginLog.Information("Enabling SelectTarget Hooks...");
+                EnableHook(selectInitialTabTargetHook, "SelectInitialTabTarget");
+                EnableHook(selectTabTargetConeHook, "SelectTabTargetCone");
+                EnableHook(selectTabTargetIgnoreDepthHook, "SelectTabTargetIgnoreDepth");
+
+                if (IsInputPressed == null)
+                {
+                    Service.PluginLog.Error("Failed to hook IsInputPressed");
+                    ErrorHooking = true;
+                }
             }
         }
 
@@ -52,7 +69,7 @@ namespace MagitekStratagemPlugin
             else
             {
                 Service.PluginLog.Error($"Failed to hook {hookName}");
-                plugin.ErrorHooking = true;
+                ErrorHooking = true;
             }
         }
 
@@ -75,14 +92,14 @@ namespace MagitekStratagemPlugin
             }
 
             var overwrite = false;
-            if (plugin.Configuration.OverrideEnemyTarget && isEnemyTarget)
+            if (Configuration.OverrideEnemyTarget && isEnemyTarget)
             {
-                if (plugin.Configuration.OverrideEnemyTargetAlways || Service.TargetManager.Target == null)
+                if (Configuration.OverrideEnemyTargetAlways || Service.TargetManager.Target == null)
                 {
                     overwrite = true;
                 }
             }
-            else if (plugin.Configuration.OverrideSoftTarget && !isEnemyTarget && (plugin.Configuration.OverrideSoftTargetAlways || Service.TargetManager.SoftTarget == null))
+            else if (Configuration.OverrideSoftTarget && !isEnemyTarget && (Configuration.OverrideSoftTargetAlways || Service.TargetManager.SoftTarget == null))
             {
                 overwrite = true;
             }
@@ -93,10 +110,10 @@ namespace MagitekStratagemPlugin
         {
             Service.PluginLog.Verbose($"SelectInitialTabTargetDetour - {targetSystem:X} {gameObjects:X} {camera:X} {a4:X}");
             var originalResult = selectInitialTabTargetHook?.Original(targetSystem, gameObjects, camera, a4) ?? IntPtr.Zero;
-            if (plugin.Configuration.Enabled && plugin.GazeService.ClosestMatch != null && NeedsOverwrite())
+            if (Configuration.Enabled && GazeService.ClosestMatch != null && NeedsOverwrite())
             {
-                Service.PluginLog.Verbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {plugin.GazeService.ClosestMatch.Address:X}");
-                return plugin.GazeService.ClosestMatch.Address;
+                Service.PluginLog.Verbose($"SelectInitialTabTargetDetour - Override tab target {originalResult:X} with {GazeService.ClosestMatch.Address:X}");
+                return GazeService.ClosestMatch.Address;
             }
             return originalResult;
         }
@@ -105,10 +122,10 @@ namespace MagitekStratagemPlugin
         {
             Service.PluginLog.Verbose($"SelectTabTargetConeDetour - {targetSystem:X} {camera:X} {gameObjects:X} {inverse} {a5:X}");
             var originalResult = selectTabTargetConeHook?.Original(targetSystem, camera, gameObjects, inverse, a5) ?? IntPtr.Zero;
-            if (originalResult != IntPtr.Zero && plugin.Configuration.Enabled && plugin.GazeService.ClosestMatch != null && NeedsOverwrite())
+            if (originalResult != IntPtr.Zero && Configuration.Enabled && GazeService.ClosestMatch != null && NeedsOverwrite())
             {
-                Service.PluginLog.Verbose($"SelectTabTargetConeDetour - Override tab target {originalResult:X} with {plugin.GazeService.ClosestMatch.Address:X}");
-                return plugin.GazeService.ClosestMatch.Address;
+                Service.PluginLog.Verbose($"SelectTabTargetConeDetour - Override tab target {originalResult:X} with {GazeService.ClosestMatch.Address:X}");
+                return GazeService.ClosestMatch.Address;
             }
             return originalResult;
         }
@@ -117,10 +134,10 @@ namespace MagitekStratagemPlugin
         {
             Service.PluginLog.Verbose($"SelectTabTargetIgnoreDepthDetour - {targetSystem:X} {camera:X} {gameObjects:X} {inverse} {a5:X}");
             var originalResult = selectTabTargetIgnoreDepthHook?.Original(targetSystem, camera, gameObjects, inverse, a5) ?? IntPtr.Zero;
-            if (originalResult != IntPtr.Zero && plugin.Configuration.Enabled && plugin.GazeService.ClosestMatch != null && NeedsOverwrite())
+            if (originalResult != IntPtr.Zero && Configuration.Enabled && GazeService.ClosestMatch != null && NeedsOverwrite())
             {
-                Service.PluginLog.Verbose($"SelectTabTargetIgnoreDepthDetour - Override tab target {originalResult:X} with {plugin.GazeService.ClosestMatch.Address:X}");
-                return plugin.GazeService.ClosestMatch.Address;
+                Service.PluginLog.Verbose($"SelectTabTargetIgnoreDepthDetour - Override tab target {originalResult:X} with {GazeService.ClosestMatch.Address:X}");
+                return GazeService.ClosestMatch.Address;
             }
             return originalResult;
         }

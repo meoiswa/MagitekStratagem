@@ -137,7 +137,7 @@ namespace MagitekStratagemPlugin
       ImGui.Separator();
 
 #if !DEBUG
-      if (plugin.ErrorHooking)
+      if (plugin.SelectTargetHooksService.ErrorHooking)
       {
         ImGui.Text("Error hooking functions.");
         return;
