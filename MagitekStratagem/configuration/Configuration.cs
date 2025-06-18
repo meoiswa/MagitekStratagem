@@ -32,6 +32,8 @@ namespace MagitekStratagemPlugin
     public string SelectedTrackerFullName { get; set; } = string.Empty;
     public string SelectedTrackerName { get; set; } = string.Empty;
 
+    public byte AddonOutOfGazeAlpha { get; set; } = 0x00;
+
     // the below exist just to make saving less cumbersome
     [NonSerialized]
     private MagitekStratagemPlugin? plugin;

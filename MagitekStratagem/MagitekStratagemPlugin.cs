@@ -24,7 +24,6 @@ namespace MagitekStratagemPlugin
     public AddonService AddonService { get; }
     public GameObjectHeatmapService HeatmapService { get; init; }
     public GazeService GazeService { get; init; }
-    public bool ErrorHooking { get; set; } = false;
 
     public MagitekStratagemPlugin(
         IDalamudPluginInterface pluginInterface,
@@ -33,8 +32,6 @@ namespace MagitekStratagemPlugin
       pluginInterface.Create<Service>();
       PluginInterface = pluginInterface;
 
-      SelectTargetHooksService = new SelectTargetHooksService(this);
-
       CommandManager = commandManager;
       WindowSystem = new("MagitekStratagemPlugin");
 
@@ -42,10 +39,10 @@ namespace MagitekStratagemPlugin
       Configuration.Initialize(this);
 
       SignalRService = new SignalRService(PluginInterface.AssemblyLocation, Configuration);
-      HeatmapService = new GameObjectHeatmapService(this);
+      HeatmapService = new GameObjectHeatmapService(Configuration);
       GazeService = new GazeService(HeatmapService, Configuration);
-      SelectTargetHooksService = new SelectTargetHooksService(this);
-      AddonService = new AddonService(GazeService);
+      SelectTargetHooksService = new SelectTargetHooksService(GazeService, Configuration);
+      AddonService = new AddonService(GazeService, Configuration);
 
       Window = new MagitekStratagemUI(this)
       {
@@ -69,20 +66,7 @@ namespace MagitekStratagemPlugin
         HelpMessage = "togggles the overlay"
       });
 
-      try
-      {
-        Service.IGameInterop.InitializeFromAttributes(SelectTargetHooksService);
-        Service.IGameInterop.InitializeFromAttributes(AddonService);
-      }
-      catch (Exception ex)
-      {
-        Service.PluginLog.Error(ex.Message);
-        ErrorHooking = true;
-      }
-
       SelectTargetHooksService.EnableHooks();
-      AddonService.EnableHooks();
-
 
       Service.Framework.Update += OnUpdate;
       PluginInterface.UiBuilder.Draw += DrawUI;
@@ -148,6 +132,7 @@ namespace MagitekStratagemPlugin
     {
       SignalRService.Update();
       GazeService.Update(Service.ClientState.LocalPlayer, SignalRService.ActiveTracker);
+      AddonService.Update();
     }
   }
 }
