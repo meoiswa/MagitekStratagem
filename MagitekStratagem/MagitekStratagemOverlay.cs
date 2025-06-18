@@ -1,6 +1,5 @@
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
-using System;
 using System.Numerics;
 
 namespace MagitekStratagemPlugin
@@ -38,17 +37,13 @@ namespace MagitekStratagemPlugin
       GC.SuppressFinalize(this);
     }
 
-    public void DrawBubbles(float gx, float gy, float rx, float ry)
+    public void DrawBubbles(Vector2 gazePos)
     {
       var size = ImGui.GetMainViewport().Size;
-      var gazeCoord = new Vector2(gx * (size.X / 2) + (size.X / 2), -gy * (size.Y / 2) + (size.Y / 2)) + ImGui.GetMainViewport().Pos;
-      var rawCoord = new Vector2(rx * (size.X / 2) + (size.X / 2), -ry * (size.Y / 2) + (size.Y / 2)) + ImGui.GetMainViewport().Pos;
+      var gazeCoord = new Vector2(gazePos.X * (size.X / 2) + (size.X / 2), -gazePos.Y * (size.Y / 2) + (size.Y / 2)) + ImGui.GetMainViewport().Pos;
 
       var white = ImGui.GetColorU32(new Vector4(1, 1, 1, 1));
       var black = ImGui.GetColorU32(new Vector4(0, 0, 0, 1));
-      var red = ImGui.GetColorU32(new Vector4(1, 0, 0, 1));
-      var blue = ImGui.GetColorU32(new Vector4(0, 0, 1, 1));
-      var yellow = ImGui.GetColorU32(new Vector4(1, 1, 0, 1));
 
       const float whiteThick = 3f;
       const float blackThick = 1.5f;
@@ -71,12 +66,12 @@ namespace MagitekStratagemPlugin
 
     public override void Draw()
     {
-      if (plugin.ActiveTracker == null || (!plugin.Configuration.IsVisible && !plugin.Configuration.OverlayEnabled))
+      if (plugin.SignalRService.ActiveTracker == null || (!plugin.Configuration.IsVisible && !plugin.Configuration.OverlayEnabled))
       {
         return;
       }
 
-      DrawBubbles(plugin.ActiveTracker.LastGazeX, plugin.ActiveTracker.LastGazeY, plugin.ActiveTracker.LastGazeX, plugin.ActiveTracker.LastGazeY);
+      DrawBubbles(plugin.SignalRService.ActiveTracker.LastGazePos);
     }
   }
 }

@@ -1,66 +1,26 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
-using Dalamud.Configuration;
-using Dalamud.Plugin;
 using Microsoft.AspNetCore.SignalR.Client;
 
 namespace MagitekStratagemPlugin
 {
-  public struct TrackerServiceData
-  {
-    public string FullName { get; set; }
-    public string Name { get; set; }
-  }
-
-  public class TrackerService
-  {
-    public TrackerService(string fullName, string name)
-    {
-      FullName = fullName;
-      Name = name;
-    }
-
-    public string FullName { get; set; }
-    public string Name { get; set; }
-    public bool IsTracking { get; set; }
-    public long LastGazeTimestamp { get; set; }
-    public float LastGazeX { get; set; }
-    public float LastGazeY { get; set; }
-
-    public void Process(long timestamp, float gazeX, float gazeY)
-    {
-      IsTracking = true;
-      if (timestamp > LastGazeTimestamp)
-      {
-        LastGazeTimestamp = timestamp;
-        LastGazeX = gazeX;
-        LastGazeY = gazeY;
-      }
-    }
-
-    public void Process(bool isTracking)
-    {
-      IsTracking = isTracking;
-    }
-  }
-
   public sealed class SignalRService
   {
     private Dictionary<string, TrackerService> trackers = new();
-    private readonly IDalamudPluginInterface pluginInterface;
+    private readonly FileInfo assemblyLocation;
+    private readonly Configuration configuration;
     private HubConnection connection;
-
     private Process? serverProcess;
 
     public HubConnectionState State => connection.State;
+    public TrackerService? ActiveTracker { get; private set; }
 
-    public SignalRService(IDalamudPluginInterface pluginInterface)
+    public SignalRService(
+      FileInfo assemblyLocation,
+      Configuration configuration)
     {
-      this.pluginInterface = pluginInterface;
+      this.assemblyLocation = assemblyLocation;
+      this.configuration = configuration;
+
       connection = new HubConnectionBuilder()
                 .WithUrl("http://localhost:44244/hub")
                 .WithAutomaticReconnect()
@@ -100,7 +60,7 @@ namespace MagitekStratagemPlugin
     {
       KillServer();
 
-      var path = pluginInterface.AssemblyLocation.FullName.Replace(".dll", ".exe");
+      var path = assemblyLocation.FullName.Replace(".dll", ".exe");
       Service.PluginLog.Info("Starting server process at " + path);
       serverProcess = new Process
       {
@@ -109,7 +69,7 @@ namespace MagitekStratagemPlugin
           FileName = path,
           UseShellExecute = false,
           CreateNoWindow = true,
-          WorkingDirectory = Path.Combine(pluginInterface.AssemblyLocation.DirectoryName!, "server"),
+          WorkingDirectory = Path.Combine(assemblyLocation.DirectoryName!, "server"),
         }
       };
       try
@@ -163,9 +123,55 @@ namespace MagitekStratagemPlugin
       }
     }
 
-    public TrackerService? GetTracker(string fullName)
+    public void Update()
     {
-      Service.PluginLog.Debug($"GetTracker: {fullName}");
+      if (ActiveTracker == null || ActiveTracker.FullName != configuration.SelectedTrackerFullName)
+      {
+        if (ActiveTracker != null)
+        {
+          StopTracking(ActiveTracker);
+          ActiveTracker = null;
+        }
+
+        if (configuration.SelectedTrackerFullName != string.Empty)
+        {
+          ActiveTracker = GetTracker(configuration.SelectedTrackerFullName);
+        }
+      }
+
+      if (ActiveTracker != null && ActiveTracker.IsTracking == false)
+      {
+        StartTracking(ActiveTracker);
+      }
+    }
+
+    public IEnumerable<TrackerService> GetTrackers()
+    {
+      return trackers.Values;
+    }
+
+    public async void StartTracking(TrackerService service)
+    {
+      Service.PluginLog.Debug($"StartTracking: {service.FullName}");
+      if (connection.State == HubConnectionState.Connected && !service.IsTracking && !service.PendingRequest)
+      {
+        service.PendingRequest = true;
+        await connection.InvokeAsync("StartTracking", service.FullName);
+      }
+    }
+
+    public async void StopTracking(TrackerService service)
+    {
+      Service.PluginLog.Debug($"StopTracking: {service.FullName}");
+      if (connection.State == HubConnectionState.Connected && service.IsTracking && !service.PendingRequest)
+      {
+        service.PendingRequest = true;
+        await connection.InvokeAsync("StopTracking", service.FullName);
+      }
+    }
+
+    private TrackerService? GetTracker(string fullName)
+    {
       if (trackers.ContainsKey(fullName))
       {
         return trackers[fullName];
@@ -176,34 +182,11 @@ namespace MagitekStratagemPlugin
       }
     }
 
-    public IEnumerable<TrackerService> GetTrackers()
-    {
-      return trackers.Values;
-    }
-
-    public async void GetTrackerServices()
+    private async void GetTrackerServices()
     {
       if (connection.State == HubConnectionState.Connected)
       {
         await connection.InvokeAsync("GetTrackerServices");
-      }
-    }
-
-    public async void StartTracking(TrackerService service)
-    {
-      Service.PluginLog.Debug($"StartTracking: {service.FullName}");
-      if (connection.State == HubConnectionState.Connected)
-      {
-        await connection.InvokeAsync("StartTracking", service.FullName);
-      }
-    }
-
-    public async void StopTracking(TrackerService service)
-    {
-      Service.PluginLog.Debug($"StopTracking: {service.FullName}");
-      if (connection.State == HubConnectionState.Connected)
-      {
-        await connection.InvokeAsync("StopTracking", service.FullName);
       }
     }
 

@@ -1,5 +1,3 @@
-using System;
-
 namespace MagitekStratagemPlugin
 {
   public abstract class MagitekStratagemException : Exception

@@ -65,15 +65,15 @@ namespace MagitekStratagemPlugin
           + " post on the official Dalamud Discord for more information.");
         ImGui.NewLine();
 
-        if (plugin.ActiveTracker == null)
+        if (plugin.SignalRService.ActiveTracker == null)
         {
           ImGui.TextWrapped("No service selected.");
         }
-        else if (plugin.ActiveTracker.Name == "Fake Eye")
+        else if (plugin.SignalRService.ActiveTracker.Name == "Fake Eye")
         {
           ImGui.TextWrapped("Fake Service is selected. Uses your mouse cursor as a fake gaze tracker.");
         }
-        else if (plugin.ActiveTracker.Name == "Tobii")
+        else if (plugin.SignalRService.ActiveTracker.Name == "Tobii")
         {
           ImGui.TextWrapped("Tobii Eye Tracker 5");
           ImGui.TextWrapped("Next generation head and eye tracking");
@@ -83,7 +83,7 @@ namespace MagitekStratagemPlugin
           ImGui.TextWrapped("In compliance with Tobii guidelines, this plugin will not record nor share Eye Tracking"
           + "data with any other software component, and Eye Tracking data is immediately disposed after use.");
         }
-        else if (plugin.ActiveTracker.Name == "Eyeware Beam")
+        else if (plugin.SignalRService.ActiveTracker.Name == "Eyeware Beam")
         {
           ImGui.TextWrapped("Eyeware Beam Eye Tracker: Turn Your Webcam into an Eye Tracker");
           ImGui.TextWrapped("Say goodbye to bulky hardware trackers for gaming. Upgrade your webcam with AI-powered eye tracking software now!");
@@ -144,7 +144,7 @@ namespace MagitekStratagemPlugin
       }
 #endif
 
-      if (plugin.ActiveTracker == null)
+      if (plugin.SignalRService.ActiveTracker == null)
       {
         ImGui.Text("No Tracker Selected");
         return;
@@ -168,8 +168,8 @@ namespace MagitekStratagemPlugin
       if (ImGui.CollapsingHeader("Debug info"))
       {
         ImGui.Indent();
-        ImGui.Text($"Closest Target: {plugin.ClosestMatch?.Name} - {plugin.ClosestMatch?.Address.ToString("X")}");
-        ImGui.Text($"Is Raycasted: {plugin.IsRaycasted}");
+        ImGui.Text($"Closest Target: {plugin.GazeService.ClosestMatch?.Name} - {plugin.GazeService.ClosestMatch?.Address.ToString("X")}");
+        ImGui.Text($"Is Raycasted: {plugin.GazeService.IsRaycasted}");
 
         var softTarget = Service.TargetManager.SoftTarget;
         if (softTarget != null)
@@ -179,13 +179,13 @@ namespace MagitekStratagemPlugin
 
         ImGui.Separator();
 
-        if (plugin.ActiveTracker != null)
+        if (plugin.SignalRService.ActiveTracker != null)
         {
-          ImGui.Text("Tracking: " + plugin.ActiveTracker.IsTracking);
+          ImGui.Text("Tracking: " + plugin.SignalRService.ActiveTracker.IsTracking);
           ImGui.Text("Gaze:");
-          ImGui.Text($"LastTime: {plugin.ActiveTracker.LastGazeTimestamp}");
-          ImGui.Text($"LastX: {plugin.ActiveTracker.LastGazeX}");
-          ImGui.Text($"LastY: {plugin.ActiveTracker.LastGazeY}");
+          ImGui.Text($"LastTime: {plugin.SignalRService.ActiveTracker.LastGazeTimestamp}");
+          ImGui.Text($"LastX: {plugin.SignalRService.ActiveTracker.LastGazePos.X}");
+          ImGui.Text($"LastY: {plugin.SignalRService.ActiveTracker.LastGazePos.Y}");
         }
         else
         {
@@ -193,8 +193,8 @@ namespace MagitekStratagemPlugin
 
           ImGui.Separator();
 
-          ImGui.Text($"Heatmap: {plugin.GameObjectHeatMap.Count}");
-          foreach (var gameObjectHeat in plugin.GameObjectHeatMap)
+          ImGui.Text($"Heatmap: {plugin.HeatmapService.HeatMap.Count}");
+          foreach (var gameObjectHeat in plugin.HeatmapService.HeatMap)
           {
             ImGui.Text($"{gameObjectHeat.Key} - {gameObjectHeat.Value}");
           }
