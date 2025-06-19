@@ -192,7 +192,7 @@ namespace MagitekStratagemServer.Trackers.Tobii.Bindings
             }
         }
 
-        public static void HeadposeSubscribe(nint device, HeadPoseCallback callback)
+        public static void HeadPoseSubscribe(nint device, HeadPoseCallback callback)
         {
             var error = head_pose_subscribe(device, callback, nint.Zero);
             if (error != Error.NO_ERROR)
@@ -201,7 +201,7 @@ namespace MagitekStratagemServer.Trackers.Tobii.Bindings
             }
         }
 
-        public static void HeadposeUnsubscribe(nint device)
+        public static void HeadPoseUnsubscribe(nint device)
         {
             Log("Unsusbcribing from Head Pose " + device);
             var error = head_pose_unsubscribe(device);

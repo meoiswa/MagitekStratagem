@@ -9,7 +9,10 @@
     "UI",
     "Accessibility",
     "Peripheral",
+    "Eye Tracking",
+    "Head Tracking",
     "Tobii",
-    "Eye Tracking"
+    "Eyeware",
+    "Opentrack"
   ]
 }

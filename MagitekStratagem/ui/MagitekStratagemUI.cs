@@ -183,9 +183,21 @@ namespace MagitekStratagemPlugin
         {
           ImGui.Text("Tracking: " + plugin.SignalRService.ActiveTracker.IsTracking);
           ImGui.Text("Gaze:");
+          ImGui.Indent();
           ImGui.Text($"LastTime: {plugin.SignalRService.ActiveTracker.LastGazeTimestamp}");
           ImGui.Text($"LastX: {plugin.SignalRService.ActiveTracker.LastGazePos.X}");
           ImGui.Text($"LastY: {plugin.SignalRService.ActiveTracker.LastGazePos.Y}");
+          ImGui.Unindent();
+          ImGui.Text("Head:");
+          ImGui.Indent();
+          ImGui.Text($"LastTime: {plugin.SignalRService.ActiveTracker.LastHeadTimestamp}");
+          ImGui.Text($"LastHeadX: {plugin.SignalRService.ActiveTracker.LastHeadPosition.X}");
+          ImGui.Text($"LastHeadY: {plugin.SignalRService.ActiveTracker.LastHeadPosition.Y}");
+          ImGui.Text($"LastHeadZ: {plugin.SignalRService.ActiveTracker.LastHeadPosition.Z}");
+          ImGui.Text($"LastHeadPitch: {plugin.SignalRService.ActiveTracker.LastHeadRotation.X}");
+          ImGui.Text($"LastHeadYaw: {plugin.SignalRService.ActiveTracker.LastHeadRotation.Y}");
+          ImGui.Text($"LastHeadRoll: {plugin.SignalRService.ActiveTracker.LastHeadRotation.Z}");
+          ImGui.Unindent();
         }
         else
         {

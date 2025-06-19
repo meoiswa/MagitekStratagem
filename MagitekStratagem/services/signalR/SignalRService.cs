@@ -26,9 +26,15 @@ namespace MagitekStratagemPlugin
                 .WithAutomaticReconnect()
                 .Build();
 
-      connection.On("TrackerUpdate", (string fullName, long timestamp, float eyeX, float eyeY) =>
+
+      connection.On("TrackerGazeUpdate", (string fullName, long timestamp, float gazeX, float gazeY) =>
       {
-        GetOrCreateTracker(fullName).Process(timestamp, eyeX, eyeY);
+        GetOrCreateTracker(fullName).ProcessGaze(timestamp, gazeX, gazeY);
+      });
+
+      connection.On("TrackerHeadUpdate", (string fullName, long timestamp, float posX, float posY, float posZ, float pitch, float yaw, float roll) =>
+      {
+        GetOrCreateTracker(fullName).ProcessHeadPose(timestamp, posX, posY, posZ, pitch, yaw, roll);
       });
 
       connection.On("TrackerServices", (TrackerServiceData[] services) =>

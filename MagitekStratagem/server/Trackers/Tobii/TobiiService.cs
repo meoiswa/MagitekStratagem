@@ -1,3 +1,4 @@
+using MagitekStratagemPlugin;
 using MagitekStratagemServer.Attributes;
 using MagitekStratagemServer.Trackers.Tobii.Bindings;
 
@@ -55,15 +56,31 @@ namespace MagitekStratagemServer.Trackers.Tobii
             device?.Unsubscribe();
         }
 
-        protected override void DoUpdate()
+        protected override (bool, bool) DoUpdate()
         {
-            if (device?.GazeTimestamp > LastGazeTimestamp)
+            if (device == null || !IsTracking)
             {
-                // TODO: Map coordinates using window rect
-                LastGazeX = device.GazeX * 2 - 1;
-                LastGazeY = -(device.GazeY * 2 - 1);
-                LastGazeTimestamp = device.GazeTimestamp;
+                return (false, false);
             }
+
+            var gazeUpdated = false;
+            if (device.LastGazeTimestamp > LastGazeTimestamp)
+            {
+                LastGazeTimestamp = device.LastGazeTimestamp;
+                LastGazePoint = device.LastGazePoint;
+                gazeUpdated = true;
+            }
+
+            var headUpdated = false;
+            if (device.LastHeadTimestamp > LastHeadTimestamp)
+            {
+                LastHeadTimestamp = device.LastHeadTimestamp;
+                LastHeadPosition = device.LastHeadPosition;
+                LastHeadRotation = device.LastHeadRotation;
+                headUpdated = true;
+            }
+
+            return (gazeUpdated, headUpdated);
         }
 
         public override void DoDispose()

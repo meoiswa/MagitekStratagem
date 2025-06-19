@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.InteropServices;
 
 namespace MagitekStratagemServer.Trackers.OpentrackUdp.Bindings

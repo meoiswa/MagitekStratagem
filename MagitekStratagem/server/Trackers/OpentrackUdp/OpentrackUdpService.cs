@@ -1,8 +1,5 @@
-
-using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using System.Runtime.InteropServices;
 using MagitekStratagemServer.Attributes;
 using MagitekStratagemServer.Trackers.OpentrackUdp.Bindings;
@@ -18,6 +15,7 @@ namespace MagitekStratagemServer.Trackers.OpentrackUdp
         private readonly object _lock = new();
         private const int OpentrackPort = 4242; // Default opentrack UDP port
         private OpentrackUdpHeadPose _lastPose;
+        private long _lastPoseTimestamp;
 
         public OpentrackUdpService(ILoggerFactory loggerFactory) : base(loggerFactory)
         {
@@ -40,17 +38,23 @@ namespace MagitekStratagemServer.Trackers.OpentrackUdp
             StopListener();
         }
 
-        protected override void DoUpdate()
+        protected override (bool, bool) DoUpdate()
         {
             if (!IsTracking)
             {
-                return;
+                return (false, false);
             }
             lock (_lock)
             {
-                LastGazeTimestamp = DateTime.Now.Ticks;
-                LastGazeX = (float)(_lastPose.Yaw / 90d); // Normalize to -1 to 1 range
-                LastGazeY = (float)(_lastPose.Pitch / 90d); // Normalize to -1 to 1 range
+                if (LastHeadTimestamp >= _lastPoseTimestamp)
+                {
+                    return (false, false);
+                }
+
+                LastGazeTimestamp = _lastPoseTimestamp;
+                LastHeadPosition = new System.Numerics.Vector3((float)_lastPose.X, (float)_lastPose.Y, (float)_lastPose.Z);
+                LastHeadRotation = new System.Numerics.Vector3((float)_lastPose.Pitch, (float)_lastPose.Yaw, (float)_lastPose.Roll);
+                return (false, true);
             }
         }
 
@@ -112,6 +116,7 @@ namespace MagitekStratagemServer.Trackers.OpentrackUdp
                         lock (_lock)
                         {
                             _lastPose = pose;
+                            _lastPoseTimestamp = DateTime.Now.Ticks;
                         }
                     }
                 }

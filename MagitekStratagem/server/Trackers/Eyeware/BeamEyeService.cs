@@ -1,3 +1,4 @@
+using System.Numerics;
 using MagitekStratagemServer.Attributes;
 using MagitekStratagemServer.Trackers.Eyeware.Bindings;
 
@@ -20,7 +21,10 @@ namespace MagitekStratagemServer.Trackers.Eyeware
             {
                 try
                 {
-                    trackerClient = new TrackerClient();
+                    trackerClient = new TrackerClient((error) =>
+                    {
+                        logger.LogError($"Eyeware Beam Tracker Error: {Enum.GetName(error)}");
+                    });
                     logger.LogTrace("Eyeware Beam Tracker Client Initialized");
                 }
                 catch (Exception e)
@@ -36,20 +40,34 @@ namespace MagitekStratagemServer.Trackers.Eyeware
             trackerClient = null;
         }
 
-        protected override void DoUpdate()
+        protected override (bool, bool) DoUpdate()
         {
-            if (trackerClient == null)
+            if (trackerClient == null || !trackerClient.Connected())
             {
-                return;
+                return (false, false);
             }
 
-            if (trackerClient.Connected())
+            var gazeInfo = trackerClient.GetScreenGazeInfo();
+
+            var gazeUpdated = false;
+            if (!gazeInfo.IsLost)
             {
-                var gazeInfo = trackerClient.GetScreenGazeInfo();
                 LastGazeTimestamp = DateTime.Now.Ticks;
-                LastGazeX = gazeInfo.X;
-                LastGazeY = gazeInfo.Y;
+                LastGazePoint = new Vector2(gazeInfo.X, gazeInfo.Y);
+                gazeUpdated = true;
             }
+
+            var headUpdated = false;
+            var headInfo = trackerClient.GetHeadPoseInfo();
+            if (!headInfo.IsLost)
+            {
+                LastHeadTimestamp = DateTime.Now.Ticks;
+                LastHeadPosition = headInfo.Transform.Translation;
+                LastHeadRotation = headInfo.Transform.ToEulerAngles();
+                headUpdated = true;
+            }
+
+            return (gazeUpdated, headUpdated);
         }
 
         public override void DoDispose()

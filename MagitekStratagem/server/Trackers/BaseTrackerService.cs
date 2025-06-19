@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics;
 using System.Reflection;
 using MagitekStratagemServer.Attributes;
 
@@ -13,13 +14,14 @@ internal abstract class BaseTrackerService : ITrackerService
 
     public string Name => GetType().GetCustomAttribute<TrackerServiceAttribute>()?.Name ?? GetType().Name;
 
-    public virtual bool IsTracking { get; protected set; }
+    public virtual bool IsTracking { get; protected set; } = false;
 
-    public virtual long LastGazeTimestamp { get; protected set; }
+    public long LastGazeTimestamp { get; protected set; } = 0;
+    public Vector2 LastGazePoint { get; protected set; } = Vector2.Zero;
 
-    public virtual float LastGazeX { get; protected set; }
-
-    public virtual float LastGazeY { get; protected set; }
+    public long LastHeadTimestamp { get; protected set; } = 0;
+    public Vector3 LastHeadPosition { get; protected set; } = Vector3.Zero;
+    public Vector3 LastHeadRotation { get; protected set; } = Vector3.Zero;
 
     private int rate = 1000 / 120;
 
@@ -30,7 +32,7 @@ internal abstract class BaseTrackerService : ITrackerService
         logger.LogDebug($"{Name} Initialized");
     }
 
-    protected void Start(Action<ITrackerService> callback)
+    protected void Start(Action<ITrackerService> gazeCallback, Action<ITrackerService> headCallback)
     {
         if (updateThread != null)
         {
@@ -46,8 +48,15 @@ internal abstract class BaseTrackerService : ITrackerService
             while (!cancellationToken.Token.IsCancellationRequested)
             {
                 stopwatch.Restart();
-                DoUpdate();
-                callback(this);
+                var (gazeUpdated, headUpdated) = DoUpdate();
+                if (gazeUpdated)
+                {
+                    gazeCallback(this);
+                }
+                if (headUpdated)
+                {
+                    headCallback(this);
+                }
                 var sleepTime = rate - (stopwatch.ElapsedTicks / 1000);
                 if (sleepTime > 0)
                 {
@@ -69,7 +78,7 @@ internal abstract class BaseTrackerService : ITrackerService
         }
     }
 
-    protected abstract void DoUpdate();
+    protected abstract (bool, bool) DoUpdate();
 
     public abstract void DoStartTracking();
 
@@ -84,11 +93,11 @@ internal abstract class BaseTrackerService : ITrackerService
         DoDispose();
     }
 
-    public void StartTracking(Action<ITrackerService> callback)
+    public void StartTracking(Action<ITrackerService> gazeCallback, Action<ITrackerService> headCallback)
     {
         logger.LogTrace($"Starting {Name} Tracking");
         DoStartTracking();
-        Start(callback);
+        Start(gazeCallback, headCallback);
     }
 
     public void StopTracking()

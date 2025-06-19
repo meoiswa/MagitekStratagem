@@ -1,3 +1,4 @@
+using System.Numerics;
 using MagitekStratagemServer.Attributes;
 
 namespace MagitekStratagemServer.Trackers.Fake
@@ -23,14 +24,19 @@ namespace MagitekStratagemServer.Trackers.Fake
             IsTracking = false;
         }
 
-        protected override void DoUpdate()
+        protected override (bool, bool) DoUpdate()
         {
-            if (!IsTracking) return;
+            if (!IsTracking) return (false, false);
 
             LastGazeTimestamp = DateTime.Now.Ticks;
             double time = LastGazeTimestamp / 1e7; // Convert ticks to seconds
-            LastGazeX = (float)Math.Cos(time);
-            LastGazeY = (float)Math.Sin(time);
+            LastGazePoint = new Vector2((float)Math.Cos(time), (float)Math.Sin(time));
+
+            LastHeadTimestamp = LastGazeTimestamp;
+            LastHeadPosition = new Vector3((float)Math.Cos(-time), (float)Math.Sin(-time), (float)Math.Sin(-time));
+            LastHeadRotation = new Vector3((float)Math.Sin(time) * 360, (float)Math.Cos(time) * 360, (float)Math.Sin(time) * 360);
+
+            return (true, true);
         }
     }
 }

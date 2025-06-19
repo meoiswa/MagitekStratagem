@@ -16,9 +16,12 @@ namespace MagitekStratagemPlugin
     public bool PendingRequest { get; set; }
     public long LastGazeTimestamp { get; private set; }
     public Vector2 LastGazePos { get; private set; }
-    public float LastGazeY { get; private set; }
 
-    public void Process(long timestamp, float gazeX, float gazeY)
+    public long LastHeadTimestamp { get; private set; }
+    public Vector3 LastHeadPosition { get; private set; }
+    public Vector3 LastHeadRotation { get; private set; }
+
+    public void ProcessGaze(long timestamp, float gazeX, float gazeY)
     {
       IsTracking = true;
       PendingRequest = false;
@@ -26,6 +29,18 @@ namespace MagitekStratagemPlugin
       {
         LastGazeTimestamp = timestamp;
         LastGazePos = new Vector2(gazeX, gazeY);
+      }
+    }
+
+    public void ProcessHeadPose(long timestamp, float posX, float posY, float posZ, float pitch, float yaw, float roll)
+    {
+      IsTracking = true;
+      PendingRequest = false;
+      if (timestamp > LastHeadTimestamp)
+      {
+        LastHeadTimestamp = timestamp;
+        LastHeadPosition = new Vector3(posX, posY, posZ);
+        LastHeadRotation = new Vector3(pitch, yaw, roll);
       }
     }
 

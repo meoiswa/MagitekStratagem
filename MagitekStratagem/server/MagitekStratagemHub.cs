@@ -48,10 +48,32 @@ namespace MagitekStratagemServer.Hubs
                 return;
             }
 
-            trackerService.StartTracking((tracker) =>
-            {
-                hubContext.Clients.All.SendAsync("TrackerUpdate", tracker.GetType().FullName, tracker.LastGazeTimestamp, tracker.LastGazeX, tracker.LastGazeY).Wait();
-            });
+            trackerService.StartTracking(
+                (tracker) =>
+                {
+                    hubContext.Clients.All.SendAsync(
+                        "TrackerGazeUpdate",
+                        tracker.GetType().FullName,
+                        tracker.LastGazeTimestamp,
+                        tracker.LastGazePoint.X,
+                        tracker.LastGazePoint.Y
+                        ).Wait();
+                },
+                (tracker) =>
+                {
+                    hubContext.Clients.All.SendAsync(
+                        "TrackerHeadUpdate",
+                        tracker.GetType().FullName,
+                        tracker.LastHeadTimestamp,
+                        tracker.LastHeadPosition.X,
+                        tracker.LastHeadPosition.Y,
+                        tracker.LastHeadPosition.Z,
+                        tracker.LastHeadRotation.X,
+                        tracker.LastHeadRotation.Y,
+                        tracker.LastHeadRotation.Z
+                    ).Wait();
+                }
+            );
 
             if (trackerService.IsTracking)
             {
