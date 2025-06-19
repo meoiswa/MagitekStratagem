@@ -1,15 +1,17 @@
 # Magitek Stratagem - Tobii Game Integration Plugin for Dalamud
 
-## Experimental Tobii integration for FFXIV
+## Eye and Head tracking integration for FFXIV
 
-To use this plugin with a Tobii tracker, you *must* have Tobii GameHub installed.
+- To use this plugin with a Tobii tracker, you *must* have Tobii GameHub installed.
+- To use this plugin with Opentrack, you *must* use the "UDP over network" configured to send data to `127.0.0.1:4242`
+
+## Integrating with MagitekStratagem
+
+ - New in 1.0.1.0! MagitekStratagem creates a Shared Data structure for other plugins to access Tracker Data in a simple and performant way.
+   - See `MagitekStratagem\Services\sharedData\SharedDataService.cs` for a more detailed explanation.
 
 ## TODO
- - Figure out a way to distinguish when `SelectTabTargetXXXX` is called by Enemy vs Soft targetting on keyboard.
- - Rename the plugin to something more generalized.
- - Implement a generalized ITrackerService that can support other types of positional tracking.
-   - ~~Refactor TobiiService to implement ITrackerService.~~
-   - Implement loading of ITrackerServices on runtime.
+ 
  - Refactor `MagitekStratagemPlugin.Update` to not rely on `ImGui.GetIO()` as this may cause issues down the line.
 
 # Special Thanks

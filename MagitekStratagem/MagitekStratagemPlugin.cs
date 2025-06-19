@@ -23,6 +23,7 @@ namespace MagitekStratagemPlugin
     public SelectTargetHooksService SelectTargetHooksService { get; init; }
     public GameObjectHeatmapService HeatmapService { get; init; }
     public GazeService GazeService { get; init; }
+    public SharedDataService SharedDataService { get; init; }
 
     public MagitekStratagemPlugin(
         IDalamudPluginInterface pluginInterface,
@@ -41,6 +42,7 @@ namespace MagitekStratagemPlugin
       HeatmapService = new GameObjectHeatmapService(Configuration);
       GazeService = new GazeService(HeatmapService, Configuration);
       SelectTargetHooksService = new SelectTargetHooksService(GazeService, Configuration);
+      SharedDataService = new SharedDataService(PluginInterface);
 
       Window = new MagitekStratagemUI(this)
       {
@@ -77,6 +79,8 @@ namespace MagitekStratagemPlugin
       SignalRService.Dispose();
       GazeService?.Dispose();
       SelectTargetHooksService?.Dispose();
+      SharedDataService?.Dispose();
+      HeatmapService?.Dispose();
 
       Service.Framework.Update -= OnUpdate;
       PluginInterface.UiBuilder.Draw -= DrawUI;
@@ -130,6 +134,10 @@ namespace MagitekStratagemPlugin
     {
       SignalRService.Update();
       GazeService.Update(Service.ClientState.LocalPlayer, SignalRService.ActiveTracker);
+      if (SignalRService.ActiveTracker != null)
+      {
+        SharedDataService.Update(SignalRService.ActiveTracker);
+      }
     }
   }
 }
