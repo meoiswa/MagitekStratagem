@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/MagitekStratagem/bin/x64/Debug/win-x64/MagitekStratagem.exe",
             "args": [],
-            "cwd": "${workspaceFolder}/MagitekStratagem/bin/x64/Debug/win-x64/server",
+            "cwd": "${workspaceFolder}/MagitekStratagem/server",
             "stopAtEntry": false,
             "console": "internalConsole",
             "env": {
