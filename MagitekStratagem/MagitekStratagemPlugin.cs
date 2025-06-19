@@ -21,7 +21,6 @@ namespace MagitekStratagemPlugin
     public MagitekStratagemOverlay Overlay { get; init; }
     public SignalRService SignalRService { get; init; }
     public SelectTargetHooksService SelectTargetHooksService { get; init; }
-    public AddonService AddonService { get; }
     public GameObjectHeatmapService HeatmapService { get; init; }
     public GazeService GazeService { get; init; }
 
@@ -42,7 +41,6 @@ namespace MagitekStratagemPlugin
       HeatmapService = new GameObjectHeatmapService(Configuration);
       GazeService = new GazeService(HeatmapService, Configuration);
       SelectTargetHooksService = new SelectTargetHooksService(GazeService, Configuration);
-      AddonService = new AddonService(GazeService, Configuration);
 
       Window = new MagitekStratagemUI(this)
       {
@@ -132,7 +130,6 @@ namespace MagitekStratagemPlugin
     {
       SignalRService.Update();
       GazeService.Update(Service.ClientState.LocalPlayer, SignalRService.ActiveTracker);
-      AddonService.Update();
     }
   }
 }
