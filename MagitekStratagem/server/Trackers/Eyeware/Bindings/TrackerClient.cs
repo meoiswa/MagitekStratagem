@@ -1,3 +1,5 @@
+using MagitekStratagemServer.Trackers.Eyeware.Bindings.Client;
+
 namespace MagitekStratagemServer.Trackers.Eyeware.Bindings
 {
     public class TrackerClient : IDisposable

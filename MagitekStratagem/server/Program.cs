@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using MagitekStratagemServer.Hubs;
 using MagitekStratagemServer.Services;
 using MagitekStratagemServer.Trackers.Eyeware.Bindings;
+using MagitekStratagemServer.Trackers.Tobii;
 using MagitekStratagemServer.Trackers.Tobii.Bindings;
 using Microsoft.AspNetCore.SignalR;
 

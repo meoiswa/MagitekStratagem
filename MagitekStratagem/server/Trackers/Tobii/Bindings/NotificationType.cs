@@ -1,0 +1,19 @@
+namespace MagitekStratagemServer.Trackers.Tobii.Bindings
+{
+    public enum NotificationType
+    {
+        CALIBRATION_STATE_CHANGED,
+        EXCLUSIVE_MODE_STATE_CHANGED,
+        TRACK_BOX_CHANGED,
+        DISPLAY_AREA_CHANGED,
+        FRAMERATE_CHANGED,
+        POWER_SAVE_STATE_CHANGED,
+        DEVICE_PAUSED_STATE_CHANGED,
+        CALIBRATION_ENABLED_EYE_CHANGED,
+        CALIBRATION_ID_CHANGED,
+        COMBINED_GAZE_EYE_SELECTION_CHANGED,
+        FAULTS_CHANGED,
+        WARNINGS_CHANGED,
+        FACE_TYPE_CHANGED
+    }
+}

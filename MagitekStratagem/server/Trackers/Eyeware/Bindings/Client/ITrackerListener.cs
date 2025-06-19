@@ -1,4 +1,4 @@
-namespace MagitekStratagemServer.Trackers.Eyeware.Bindings
+namespace MagitekStratagemServer.Trackers.Eyeware.Bindings.Client
 {
     public interface ITrackerListener
     {

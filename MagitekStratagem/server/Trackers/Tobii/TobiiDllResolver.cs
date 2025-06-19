@@ -1,7 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using MagitekStratagemServer.Trackers.Tobii.Bindings;
 
-namespace MagitekStratagemServer.Trackers.Tobii.Bindings;
+namespace MagitekStratagemServer.Trackers.Tobii;
 
 internal class TobiiDllResolver
 {

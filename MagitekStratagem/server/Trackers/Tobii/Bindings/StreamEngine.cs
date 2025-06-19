@@ -3,68 +3,8 @@ using System.Text;
 
 namespace MagitekStratagemServer.Trackers.Tobii.Bindings
 {
-    public static class StreamEngine
+    public static partial class StreamEngine
     {
-        public enum Error
-        {
-            NO_ERROR,
-            INTERNAL,
-            INSUFFICIENT_LICENSE,
-            NOT_SUPPORTED,
-            NOT_AVAILABLE,
-            FAILED,
-            TIMED_OUT,
-            ALLOCATION_FAILED,
-            INVALID_PARAMETER,
-            CALIBRATION_ALREADY_STARTED,
-            CALIBRATION_NOT_STARTED,
-            ALREADY_SUBSCRIBED,
-            NOT_SUBSCRIBED,
-            OPERATION_FAILED,
-            CONFLICTING_API_INSTANCES,
-            CALIBRATION_BUSY,
-            CALLBACK_IN_PROGRESS,
-            TOO_MANY_SUBSCRIBERS,
-            CONNECTION_FAILED_DRIVER,
-            UNAUTHORIZED
-        }
-
-        public enum FieldOfUse
-        {
-            INTERACTIVE = 1,
-            ANALYTICAL = 2,
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct Version
-        {
-            public int major;
-            public int minor;
-            public int revision;
-            public int build;
-        }
-
-        public enum Validity
-        {
-            INVALID = 0,
-            VALID = 1
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct Vector2D
-        {
-            public float x;
-            public float y;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct GazePoint
-        {
-            public long timestamp;
-            public Validity validity;
-            public Vector2D position;
-        }
-
         private static Action<string> Log = (message) => { Console.WriteLine("StreamEngine: " + message); };
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -73,10 +13,28 @@ namespace MagitekStratagemServer.Trackers.Tobii.Bindings
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void GazePointCallback(ref GazePoint gaze_point, nint user_data);
 
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void GazeOriginCallback(ref GazeOrigin gaze_origin, nint user_data);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void EyePositionNormalizedCallback(ref EyePositionNormalized eye_position, nint user_data);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void UserPresenceCallback(UserPresenceStatus status, long timestamp_us, nint user_data);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void HeadPoseCallback(ref HeadPose head_pose, nint user_data);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void NotificationsCallback(ref Notification notification, nint user_data);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void UserPositionGuideCallback(ref UserPositionGuide user_position_guide, nint user_data);
+
         public const string Library = "tobii_stream_engine.dll";
 
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_get_api_version")]
-        private static extern Error get_api_version(out Version version);
+        private static extern Error get_api_version(out TobiiVersion version);
 
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_api_create")]
         private static extern Error api_create(out nint api, nint custom_alloc, nint custom_log);
@@ -96,11 +54,48 @@ namespace MagitekStratagemServer.Trackers.Tobii.Bindings
                     EntryPoint = "tobii_device_destroy")]
         private static extern Error device_destroy(nint device);
 
+
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_gaze_point_subscribe")]
         private static extern Error gaze_point_subscribe(nint device, GazePointCallback callback, nint user_data);
 
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_gaze_point_unsubscribe")]
         private static extern Error gaze_point_unsubscribe(nint device);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_gaze_origin_subscribe")]
+        private static extern Error gaze_origin_subscribe(nint device, GazeOriginCallback callback, nint user_data);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_gaze_origin_unsubscribe")]
+        private static extern Error gaze_origin_unsubscribe(nint device);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_eye_position_normalized_subscribe")]
+        private static extern Error eye_position_normalized_subscribe(nint device, EyePositionNormalizedCallback callback, nint user_data);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_eye_position_normalized_unsubscribe")]
+        private static extern Error eye_position_normalized_unsubscribe(nint device);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_user_presence_subscribe")]
+        private static extern Error user_presence_subscribe(nint device, UserPresenceCallback callback, nint user_data);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_user_presence_unsubscribe")]
+        private static extern Error user_presence_unsubscribe(nint device);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_head_pose_subscribe")]
+        private static extern Error head_pose_subscribe(nint device, HeadPoseCallback callback, nint user_data);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_head_pose_unsubscribe")]
+        private static extern Error head_pose_unsubscribe(nint device);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_notifications_subscribe")]
+        private static extern Error notifications_subscribe(nint device, NotificationsCallback callback, nint user_data);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_notifications_unsubscribe")]
+        private static extern Error notifications_unsubscribe(nint device);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_user_position_guide_subscribe")]
+        private static extern Error user_position_guide_subscribe(nint device, UserPositionGuideCallback callback, nint user_data);
+
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl, EntryPoint = "tobii_user_position_guide_unsubscribe")]
+        private static extern Error user_position_guide_unsubscribe(nint device);
 
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl,
                     EntryPoint = "tobii_wait_for_callbacks")]
@@ -113,9 +108,9 @@ namespace MagitekStratagemServer.Trackers.Tobii.Bindings
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "tobii_get_device_name")]
         private static extern Error get_device_name(nint device, StringBuilder device_name);
 
-        public static Version GetApiVersion()
+        public static TobiiVersion GetApiVersion()
         {
-            Version version;
+            TobiiVersion version;
             var error = get_api_version(out version);
             if (error != Error.NO_ERROR)
             {
@@ -197,6 +192,25 @@ namespace MagitekStratagemServer.Trackers.Tobii.Bindings
             }
         }
 
+        public static void HeadposeSubscribe(nint device, HeadPoseCallback callback)
+        {
+            var error = head_pose_subscribe(device, callback, nint.Zero);
+            if (error != Error.NO_ERROR)
+            {
+                throw new TobiiException("Failed to subscribe to head pose: " + error);
+            }
+        }
+
+        public static void HeadposeUnsubscribe(nint device)
+        {
+            Log("Unsusbcribing from Head Pose " + device);
+            var error = head_pose_unsubscribe(device);
+            if (error != Error.NO_ERROR)
+            {
+                throw new TobiiException("Failed to unsubscribe from head pose: " + error);
+            }
+        }
+
         public static bool WaitForCallbacks(IEnumerable<nint> devices)
         {
             if (devices != null && devices.Any())
@@ -241,153 +255,5 @@ namespace MagitekStratagemServer.Trackers.Tobii.Bindings
         {
             Log = (message) => { logger.LogTrace(message); };
         }
-    }
-
-    public abstract class UnmanagedObject : IDisposable
-    {
-        public nint Ptr { get; private set; }
-
-        protected UnmanagedObject(nint ptr)
-        {
-            Ptr = ptr;
-        }
-
-        protected abstract void Destroy();
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (Ptr != nint.Zero)
-            {
-                Destroy();
-                Ptr = nint.Zero;
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-    }
-
-    public class Api : UnmanagedObject
-    {
-        protected override void Destroy()
-        {
-            StreamEngine.DestroyApi(Ptr);
-        }
-
-        public Api(nint ptr) : base(ptr)
-        {
-        }
-
-        public List<string> EnumerateDeviceUrls()
-        {
-            return StreamEngine.EnumerateLocalDevices(Ptr);
-        }
-
-        public Device CreateDevice(string url)
-        {
-            return StreamEngine.CreateDevice(Ptr, url);
-        }
-
-        public void WaitForCallbacks(IEnumerable<Device> devices)
-        {
-            StreamEngine.WaitForCallbacks(devices.Select((device) => device.Ptr));
-        }
-    }
-
-    public class Device : UnmanagedObject
-    {
-        private Thread? processingThread;
-
-        private readonly StreamEngine.GazePointCallback gazePointCallback;
-
-        public Device(nint ptr) : base(ptr)
-        {
-            Name = StreamEngine.GetDeviceName(Ptr);
-            gazePointCallback = GazePointCallback;
-        }
-
-        public float GazeX { get; private set; }
-        public float GazeY { get; private set; }
-        public long GazeTimestamp { get; private set; }
-
-        public string Name { get; private set; }
-
-        public bool Subscribed { get; private set; }
-
-        protected override void Destroy()
-        {
-            Unsubscribe();
-            StreamEngine.DestroyDevice(Ptr);
-        }
-
-        public void Subscribe(bool threaded = true)
-        {
-            if (!Subscribed)
-            {
-                StreamEngine.GazePointSubscribe(Ptr, gazePointCallback);
-
-                if (threaded)
-                {
-                    processingThread = new Thread(() =>
-                    {
-                        while (Subscribed)
-                        {
-                            StreamEngine.WaitForCallbacks(new[] { Ptr });
-                            StreamEngine.ProcessCallbacks(Ptr);
-                            Thread.Sleep(1);
-                        }
-                    });
-
-                    processingThread.Start();
-                }
-
-                Subscribed = true;
-            }
-        }
-
-        public void Unsubscribe()
-        {
-            if (Subscribed)
-            {
-                StreamEngine.GazePointUnsubscribe(Ptr);
-                Subscribed = false;
-                processingThread?.Join();
-            }
-        }
-
-        public void ProcessCallbacks()
-        {
-            StreamEngine.ProcessCallbacks(Ptr);
-        }
-
-        public override string ToString()
-        {
-            return $"Device {Name} ({Ptr})";
-        }
-
-        private void GazePointCallback(ref StreamEngine.GazePoint gazePoint, nint userData = default)
-        {
-            if (gazePoint.validity != StreamEngine.Validity.VALID)
-            {
-                return;
-            }
-
-            if (gazePoint.timestamp <= GazeTimestamp)
-            {
-                return;
-            }
-
-            GazeX = gazePoint.position.x;
-            GazeY = gazePoint.position.y;
-            GazeTimestamp = gazePoint.timestamp;
-        }
-    }
-
-    public class TobiiException : Exception
-    {
-        public TobiiException(string message) : base(message) { }
     }
 }
