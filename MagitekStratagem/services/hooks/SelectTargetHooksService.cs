@@ -33,7 +33,7 @@ namespace MagitekStratagemPlugin
 
             try
             {
-                Service.IGameInterop.InitializeFromAttributes(this);
+                Service.GameInterop.InitializeFromAttributes(this);
             }
             catch (Exception ex)
             {

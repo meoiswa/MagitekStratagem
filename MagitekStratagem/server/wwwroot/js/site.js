@@ -12,12 +12,12 @@ const servicesSelect = document.getElementById("servicesSelect");
 const lastTimestamp = document.getElementById("lastTimestamp");
 const lastX = document.getElementById("lastX");
 // Redraw canvas on window resize and tracker change
-window.addEventListener('resize', () => {
+window.addEventListener("resize", () => {
   // Optionally, resize canvas to match screen div if you want responsive
   // For now, just redraw
   drawScene();
 });
-servicesSelect.addEventListener('change', () => {
+servicesSelect.addEventListener("change", () => {
   drawScene();
 });
 
@@ -27,7 +27,8 @@ const connection = new signalR.HubConnectionBuilder()
   .build();
 
 // Also, redraw on connection start to clear any old axes
-connection.start()
+connection
+  .start()
   .then(() => {
     connectionStatus.textContent = "Connected";
     drawScene();
@@ -53,7 +54,14 @@ let maxAbsHeadY = 1;
 
 // Store last gaze and head data for drawing
 let lastGaze = { x: null, y: null };
-let lastHead = { x: null, y: null, z: null, pitch: null, yaw: null, roll: null };
+let lastHead = {
+  x: null,
+  y: null,
+  z: null,
+  pitch: null,
+  yaw: null,
+  roll: null,
+};
 
 function drawScene() {
   // Clear canvas
@@ -83,11 +91,15 @@ function drawScene() {
     mainCtx.fill();
 
     // Draw axes if rotation is available
-    if (lastHead.pitch !== null && lastHead.yaw !== null && lastHead.roll !== null) {
+    if (
+      lastHead.pitch !== null &&
+      lastHead.yaw !== null &&
+      lastHead.roll !== null
+    ) {
       // Invert pitch, yaw, roll for mirror effect
-      let pitchRad = -lastHead.pitch * Math.PI / 180;
-      let yawRad = -lastHead.yaw * Math.PI / 180;
-      let rollRad = -lastHead.roll * Math.PI / 180;
+      let pitchRad = (-lastHead.pitch * Math.PI) / 180;
+      let yawRad = (-lastHead.yaw * Math.PI) / 180;
+      let rollRad = (-lastHead.roll * Math.PI) / 180;
       function rotate(v) {
         let [x, y, z] = v;
         // Roll (Z)
@@ -105,12 +117,12 @@ function drawScene() {
         return [x3, y3, z3];
       }
       const axes = [
-        { v: [1, 0, 0], color: "red" },    // right
-        { v: [0, 1, 0], color: "green" },  // up
-        { v: [0, 0, 1], color: "blue" },   // forward
+        { v: [1, 0, 0], color: "red" }, // right
+        { v: [0, 1, 0], color: "green" }, // up
+        { v: [0, 0, 1], color: "blue" }, // forward
       ];
       const axisLength = 40;
-      axes.forEach(axis => {
+      axes.forEach((axis) => {
         const [dx, dy, dz] = rotate(axis.v);
         mainCtx.beginPath();
         mainCtx.moveTo(cx, cy);
@@ -124,7 +136,6 @@ function drawScene() {
 }
 
 // ...existing code...
-
 
 // Handle Gaze updates
 connection.on("TrackerGazeUpdate", (name, timestamp, x, y) => {
@@ -155,55 +166,74 @@ connection.on("TrackerGazeUpdate", (name, timestamp, x, y) => {
 });
 
 // Handle Head updates
-connection.on("TrackerHeadUpdate", (name, timestamp, x, y, z, pitch, yaw, roll) => {
-  if (name != servicesSelect.value) {
-    return;
-  }
-  if (x !== null && y !== null && z !== null) {
-    headX.textContent = x.toFixed(2);
-    headY.textContent = y.toFixed(2);
-    headZ.textContent = z.toFixed(2);
-    if (Math.abs(x) > maxAbsHeadX) maxAbsHeadX = Math.abs(x);
-    if (Math.abs(y) > maxAbsHeadY) maxAbsHeadY = Math.abs(y);
-    lastHead.x = x;
-    lastHead.y = y;
-    lastHead.z = z;
-  } else {
-    headX.textContent = headY.textContent = headZ.textContent = "N/A";
-    lastHead.x = lastHead.y = lastHead.z = null;
-  }
-  if (pitch !== null && yaw !== null && roll !== null) {
-    headPitch.textContent = pitch.toFixed(2);
-    headYaw.textContent = yaw.toFixed(2);
-    headRoll.textContent = roll.toFixed(2);
-    lastHead.pitch = pitch;
-    lastHead.yaw = yaw;
-    lastHead.roll = roll;
-  } else {
-    headPitch.textContent = headYaw.textContent = headRoll.textContent = "N/A";
-    lastHead.pitch = lastHead.yaw = lastHead.roll = null;
-  }
-  drawScene();
-  if (timestamp !== null && headLastTimestamp) {
-    let ts = Number(timestamp);
-    if (!isNaN(ts) && ts > 1000000000000) {
-      let ms = (ts - 621355968000000000) / 10000;
-      let date = new Date(ms);
-      headLastTimestamp.textContent = date.toLocaleString();
+connection.on(
+  "TrackerHeadUpdate",
+  (name, timestamp, x, y, z, pitch, yaw, roll) => {
+    if (name != servicesSelect.value) {
+      return;
+    }
+    if (x !== null && y !== null && z !== null) {
+      headX.textContent = x.toFixed(2);
+      headY.textContent = y.toFixed(2);
+      headZ.textContent = z.toFixed(2);
+      if (Math.abs(x) > maxAbsHeadX) maxAbsHeadX = Math.abs(x);
+      if (Math.abs(y) > maxAbsHeadY) maxAbsHeadY = Math.abs(y);
+      lastHead.x = x;
+      lastHead.y = y;
+      lastHead.z = z;
     } else {
-      headLastTimestamp.textContent = timestamp;
+      headX.textContent = headY.textContent = headZ.textContent = "N/A";
+      lastHead.x = lastHead.y = lastHead.z = null;
+    }
+    if (pitch !== null && yaw !== null && roll !== null) {
+      headPitch.textContent = pitch.toFixed(2);
+      headYaw.textContent = yaw.toFixed(2);
+      headRoll.textContent = roll.toFixed(2);
+      lastHead.pitch = pitch;
+      lastHead.yaw = yaw;
+      lastHead.roll = roll;
+    } else {
+      headPitch.textContent =
+        headYaw.textContent =
+        headRoll.textContent =
+          "N/A";
+      lastHead.pitch = lastHead.yaw = lastHead.roll = null;
+    }
+    drawScene();
+    if (timestamp !== null && headLastTimestamp) {
+      let ts = Number(timestamp);
+      if (!isNaN(ts) && ts > 1000000000000) {
+        let ms = (ts - 621355968000000000) / 10000;
+        let date = new Date(ms);
+        headLastTimestamp.textContent = date.toLocaleString();
+      } else {
+        headLastTimestamp.textContent = timestamp;
+      }
     }
   }
-});
+);
 
 connection.on("TrackerServices", (services) => {
   console.info("Tracker services", services);
-  servicesSelect.innerHTML = "";
   services.forEach((service) => {
+    const existingOption = Array.from(servicesSelect.options).find(
+      (opt) => opt.value === service.fullName
+    );
+    if (existingOption) {
+      // If the option already exists, skip adding it again
+      console.log("Skipping existing service: " + service.fullName);
+      return;
+    }
     const option = document.createElement("option");
     option.text = service.name;
     option.value = service.fullName;
     servicesSelect.add(option);
+  });
+  // Remove services that no longer exist
+  Array.from(servicesSelect.options).forEach((opt) => {
+    if (!services.some((s) => s.fullName === opt.value)) {
+      servicesSelect.remove(opt.index);
+    }
   });
 });
 
@@ -222,6 +252,10 @@ connection.on("TrackingStopped", (name) => {
 startEyeTracking = () => {
   let name = servicesSelect.value;
   console.log("Start tracking: " + name);
+  if (!connection || !connection.invoke) {
+    console.warn("SignalR connection not ready");
+    return;
+  }
   connection.invoke("StartTracking", name).catch((err) => {
     console.error(err.toString());
   });
@@ -230,7 +264,22 @@ startEyeTracking = () => {
 stopEyeTracking = () => {
   let name = servicesSelect.value;
   console.log("Stop tracking: " + name);
+  if (!connection || !connection.invoke) {
+    console.warn("SignalR connection not ready");
+    return;
+  }
   connection.invoke("StopTracking", name).catch((err) => {
+    console.error(err.toString());
+  });
+};
+
+refreshTrackers = () => {
+  console.log("Refreshing tracker services");
+  if (!connection || !connection.invoke) {
+    console.warn("SignalR connection not ready");
+    return;
+  }
+  connection.invoke("GetTrackerServices").catch((err) => {
     console.error(err.toString());
   });
 };

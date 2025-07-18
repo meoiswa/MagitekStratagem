@@ -13,31 +13,21 @@ namespace MagitekStratagemServer.Trackers.Eyeware
 
         public BeamService(ILoggerFactory loggerFactory) : base(loggerFactory)
         {
+            trackerClient = new TrackerClient((error) =>
+            {
+                logger.LogError($"Eyeware Beam Tracker Error: {Enum.GetName(error)}");
+            });
+            logger.LogTrace("Eyeware Beam Tracker Client Initialized");
         }
 
         public override void DoStartTracking()
         {
-            if (trackerClient == null)
-            {
-                try
-                {
-                    trackerClient = new TrackerClient((error) =>
-                    {
-                        logger.LogError($"Eyeware Beam Tracker Error: {Enum.GetName(error)}");
-                    });
-                    logger.LogTrace("Eyeware Beam Tracker Client Initialized");
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e.Message);
-                }
-            }
+            // Do nothing;
         }
 
         public override void DoStopTracking()
         {
-            trackerClient?.Dispose();
-            trackerClient = null;
+            // Do nothing;
         }
 
         protected override (bool, bool) DoUpdate()
@@ -73,6 +63,7 @@ namespace MagitekStratagemServer.Trackers.Eyeware
         public override void DoDispose()
         {
             trackerClient?.Dispose();
+            trackerClient = null;
         }
     }
 }

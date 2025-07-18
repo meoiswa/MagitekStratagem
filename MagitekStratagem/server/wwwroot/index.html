@@ -22,7 +22,8 @@
             <h2>Head Data</h2>
             <p>Last Timestamp: <span id="headLastTimestamp">N/A</span></p>
             <p>Last Position: <span id="headX">N/A</span>, <span id="headY">N/A</span>, <span id="headZ">N/A</span></p>
-            <p>Orientation: Pitch: <span id="headPitch">N/A</span>, Yaw: <span id="headYaw">N/A</span>, Roll: <span id="headRoll">N/A</span></p>
+            <p>Orientation: Pitch: <span id="headPitch">N/A</span>, Yaw: <span id="headYaw">N/A</span>, Roll: <span
+                    id="headRoll">N/A</span></p>
         </div>
     </div>
     <div id="buttons">
@@ -32,9 +33,11 @@
     <div id="services">
         <select id="servicesSelect">
         </select>
+        <button id="refreshServicesButton" onclick="refreshTrackers()" title="Refresh tracker services">⟳</button>
     </div>
     <div id="screen" style="position: relative; width: 800px; height: 400px; border: 1px solid black;">
-        <canvas id="mainCanvas" width="800" height="400" style="position: absolute; left: 0; top: 0; pointer-events: none;"></canvas>
+        <canvas id="mainCanvas" width="800" height="400"
+            style="position: absolute; left: 0; top: 0; pointer-events: none;"></canvas>
     </div>
 
     <script src="js/signalr/dist/browser/signalr.js"></script>

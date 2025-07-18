@@ -156,6 +156,20 @@ namespace MagitekStratagemPlugin
       return trackers.Values;
     }
 
+    public void RefreshServices()
+    {
+      if (connection.State == HubConnectionState.Connected)
+      {
+        connection.InvokeAsync("GetTrackerServices").ContinueWith(task =>
+        {
+          if (task.IsFaulted)
+          {
+            Service.PluginLog.Error(task.Exception, "Failed to refresh tracker services");
+          }
+        });
+      }
+    }
+
     public async void StartTracking(TrackerService service)
     {
       Service.PluginLog.Debug($"StartTracking: {service.FullName}");

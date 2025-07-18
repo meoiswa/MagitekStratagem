@@ -20,52 +20,78 @@ namespace MagitekStratagemServer.Services
             logger.LogTrace("Tracker Service Provider Initialized");
         }
 
+        public ITrackerService? InitializeTracker(Type t)
+        {
+            if (t == null || !typeof(ITrackerService).IsAssignableFrom(t))
+            {
+                logger.LogError($"Invalid tracker type: {t?.FullName}");
+                return null;
+            }
+
+            var tracker = Activator.CreateInstance(t, loggerFactory) as ITrackerService;
+            if (tracker != null)
+            {
+                logger.LogTrace($"Initialized Tracker: {tracker.Name}");
+            }
+            else
+            {
+                logger.LogError($"Failed to create instance of tracker: {t.FullName}");
+            }
+
+            return tracker;
+        }
+
+
+
+        public void InitializeTrackers()
+        {
+            var trackerTypes = new List<Type>
+            {
+                typeof(TobiiService),
+                typeof(BeamService),
+                typeof(FakeEyeService),
+                typeof(OpentrackUdpService)
+            };
+
+            foreach (var type in trackerTypes)
+            {
+                if (!trackerServices.ContainsKey(type.FullName!))
+                {
+                    ITrackerService? tracker = null;
+                    try
+                    {
+                        tracker = InitializeTracker(type);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, $"Error initializing tracker: {type.FullName}");
+                    }
+
+                    if (tracker != null)
+                    {
+                        trackerServices[type.FullName!] = tracker;
+                    }
+                    else
+                    {
+                        logger.LogError($"Failed to initialize tracker: {type.FullName}");
+                    }
+                }
+            }
+        }
+
         public ITrackerService? GetTracker(string fullName)
         {
             logger.LogTrace($"Getting Tracker: {fullName}");
             var tracker = trackerServices.GetValueOrDefault(fullName);
-
-            if (tracker == null)
-            {
-                if (fullName == typeof(TobiiService).FullName)
-                {
-                    tracker = new TobiiService(loggerFactory);
-                }
-                else if (fullName == typeof(BeamService).FullName)
-                {
-                    tracker = new BeamService(loggerFactory);
-                }
-                else if (fullName == typeof(FakeEyeService).FullName)
-                {
-                    tracker = new FakeEyeService(loggerFactory);
-                }
-                else if (fullName == typeof(OpentrackUdpService).FullName)
-                {
-                    tracker = new OpentrackUdpService(loggerFactory);
-                }
-
-                if (tracker != null)
-                {
-                    trackerServices[fullName] = tracker;
-                }
-            }
-
             logger.LogTrace($"Tracker: {tracker?.Name ?? "null"}");
-
             return tracker;
         }
 
         public IEnumerable<Type> ListTrackers()
         {
+            InitializeTrackers();
             logger.LogTrace("Listing Trackers");
-            var types = new List<Type>()
-            {
-                typeof(FakeEyeService),
-                typeof(TobiiService),
-                typeof(BeamService),
-                typeof(OpentrackUdpService),
-            };
-            return types;
+            return trackerServices.Values.Select(t => t.GetType());
         }
 
         public void Dispose()

@@ -40,6 +40,11 @@ namespace MagitekStratagemPlugin
         ImGui.Indent();
         ImGui.TextWrapped("Select the service to use for eye tracking.");
 
+        if (ImGui.Button("Refresh"))
+        {
+          plugin.SignalRService.RefreshServices();
+        }
+
         var trackers = plugin.SignalRService.GetTrackers();
         var array = trackers.OrderBy(x => x.FullName).ToArray();
         var current = Array.FindIndex(array, x => x.FullName == plugin.Configuration.SelectedTrackerFullName);
