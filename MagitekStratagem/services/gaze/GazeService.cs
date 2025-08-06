@@ -1,4 +1,5 @@
 using System.Numerics;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
@@ -34,7 +35,7 @@ namespace MagitekStratagemPlugin
             {
                 if (activeTracker.IsTracking)
                 {
-                    var size = ImGuiNET.ImGui.GetIO().DisplaySize;
+                    var size = ImGui.GetIO().DisplaySize;
                     LastGazeScreenPos = CalculateGazeScreenPos(size, activeTracker.LastGazePos);
 
                     if (Service.Condition.Any() && player != null && !WatchingAnyCutscene())
