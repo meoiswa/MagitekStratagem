@@ -18,3 +18,4 @@
  - Wintermute for the Highlight GameObject sig, and plenty of guidance, in particular with the Ray casting.
  - Avafloww for the Tab Targeting sigs, that somehow still work despite all the patches.
  - NotNite for fine-tuning sigs, and helping improve the targetting overrides.
+ - Hasselnussbomber for further sigs fine-tuning, and helping correctly differentiate Circle and Tab targetting on Gamepad.

@@ -1,6 +1,8 @@
 using Dalamud.Hooking;
 using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using FFXIVClientStructs.FFXIV.Client.System.Input;
+using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace MagitekStratagemPlugin
 {
@@ -10,6 +12,10 @@ namespace MagitekStratagemPlugin
         public bool ErrorHooking { get; private set; } = false;
         public Configuration Configuration { get; }
         public GazeService GazeService { get; }
+        public bool SelectInitialTabTargetHooked => selectInitialTabTargetHook != null;
+        public bool SelectTabTargetConeHooked => selectTabTargetConeHook != null;
+        public bool SelectTabTargetIgnoreDepthHooked => selectTabTargetIgnoreDepthHook != null;
+        public bool GetInputStatusHooked => GetInputStatus != null;
 
         private delegate IntPtr SelectInitialTabTargetDelegate(IntPtr targetSystem, IntPtr gameObjects, IntPtr camera, IntPtr a4);
         private delegate IntPtr SelectTabTargetDelegate(IntPtr targetSystem, IntPtr camera, IntPtr gameObjects, bool inverse, IntPtr a5);
@@ -17,14 +23,14 @@ namespace MagitekStratagemPlugin
         [Signature("E8 ?? ?? ?? ?? EB 11 44 0F B6 CD", DetourName = nameof(SelectInitialTabTargetDetour))]
         private readonly Hook<SelectInitialTabTargetDelegate>? selectInitialTabTargetHook = null;
 
-        [Signature("E8 ?? ?? ?? ?? EB 4C 41 B1 01", DetourName = nameof(SelectTabTargetConeDetour))]
+        [Signature("E8 ?? ?? ?? ?? EB ?? 41 B1 ?? 48 8D 54 24", DetourName = nameof(SelectTabTargetConeDetour))]
         private readonly Hook<SelectTabTargetDelegate>? selectTabTargetConeHook = null;
 
-        [Signature("E8 ?? ?? ?? ?? 48 8B C8 48 85 C0 74 29", DetourName = nameof(SelectTabTargetIgnoreDepthDetour))]
+        [Signature("E8 ?? ?? ?? ?? 48 8B AC 24 ?? ?? ?? ?? 48 8B D8 48 85 C0", DetourName = nameof(SelectTabTargetIgnoreDepthDetour))]
         private readonly Hook<SelectTabTargetDelegate>? selectTabTargetIgnoreDepthHook = null;
 
         [Signature("E8 ?? ?? ?? ?? 84 C0 44 8B C3")]
-        private readonly delegate* unmanaged<InputManager*, int, bool> IsInputPressed = null;
+        private readonly delegate* unmanaged<InputManager*, int, bool> GetInputStatus = null;
 
         public SelectTargetHooksService(GazeService gazeService, Configuration configuration)
         {
@@ -51,9 +57,9 @@ namespace MagitekStratagemPlugin
                 EnableHook(selectTabTargetConeHook, "SelectTabTargetCone");
                 EnableHook(selectTabTargetIgnoreDepthHook, "SelectTabTargetIgnoreDepth");
 
-                if (IsInputPressed == null)
+                if (GetInputStatus == null)
                 {
-                    Service.PluginLog.Error("Failed to hook IsInputPressed");
+                    Service.PluginLog.Error("Failed to hook GetInputStatus");
                     ErrorHooking = true;
                 }
             }
@@ -76,24 +82,43 @@ namespace MagitekStratagemPlugin
         private unsafe bool IsCircleTargetInput()
         {
             var manager = InputManager.Instance();
-            return IsInputPressed(manager, 18) || IsInputPressed(manager, 19);
+
+            // If 16 is false, it indicates a keyboard circle target:
+            if (!GetInputStatus(manager, 16))
+            {
+                Service.PluginLog.Verbose("IsCircleTargetInput - Detected keyboard circle target");
+                return true;
+            }
+
+            // Else if 18 XOR 19 is pressed, it's also a circle target
+            if (GetInputStatus(manager, 18) ^ GetInputStatus(manager, 19))
+            {
+                Service.PluginLog.Verbose("IsCircleTargetInput - Detected gamepad circle target");
+                return true;
+            }
+
+            return false;
         }
 
         private bool NeedsOverwrite()
         {
+            Service.PluginLog.Verbose("NeedsOverwrite");
             bool isEnemyTarget;
             if (IsCircleTargetInput())
             {
+                Service.PluginLog.Verbose("Circle target input detected");
                 isEnemyTarget = false;
             }
             else
             {
+                Service.PluginLog.Verbose("Tab target input detected");
                 isEnemyTarget = true;
             }
 
             var overwrite = false;
             if (Configuration.OverrideEnemyTarget && isEnemyTarget)
             {
+                Service.PluginLog.Verbose($"Service.TargetManager.Target: {Service.TargetManager.Target?.Name}");
                 if (Configuration.OverrideEnemyTargetAlways || Service.TargetManager.Target == null)
                 {
                     overwrite = true;

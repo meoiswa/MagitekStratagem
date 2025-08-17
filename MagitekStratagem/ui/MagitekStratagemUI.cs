@@ -176,6 +176,15 @@ namespace MagitekStratagemPlugin
         ImGui.Text($"Closest Target: {plugin.GazeService.ClosestMatch?.Name} - {plugin.GazeService.ClosestMatch?.Address.ToString("X")}");
         ImGui.Text($"Is Raycasted: {plugin.GazeService.IsRaycasted}");
 
+        ImGui.Separator();
+        ImGui.Text("Hooks:");
+        ImGui.Indent();
+        ImGui.Text($"SelectInitialTabTarget: {plugin.SelectTargetHooksService.SelectInitialTabTargetHooked}");
+        ImGui.Text($"SelectTabTargetCone: {plugin.SelectTargetHooksService.SelectTabTargetConeHooked}");
+        ImGui.Text($"SelectTabTargetIgnoreDepth: {plugin.SelectTargetHooksService.SelectTabTargetIgnoreDepthHooked}");
+        ImGui.Text($"GetInputStatus: {plugin.SelectTargetHooksService.GetInputStatusHooked}");
+        ImGui.Unindent();
+
         var softTarget = Service.TargetManager.SoftTarget;
         if (softTarget != null)
         {
@@ -387,6 +396,11 @@ namespace MagitekStratagemPlugin
 
     private void DrawBehaviorSettingsSection()
     {
+      var hooksAvailable = plugin.SelectTargetHooksService.SelectInitialTabTargetHooked
+        && plugin.SelectTargetHooksService.SelectTabTargetConeHooked
+        && plugin.SelectTargetHooksService.SelectTabTargetIgnoreDepthHooked
+        && plugin.SelectTargetHooksService.GetInputStatusHooked;
+
       if (ImGui.CollapsingHeader("Behavior Settings"))
       {
         ImGui.Indent();
