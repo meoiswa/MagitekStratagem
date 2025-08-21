@@ -31,14 +31,21 @@ namespace MagitekStratagemPlugin
 
         public void Update(IGameObject? player, TrackerService? activeTracker)
         {
-            if (configuration.Enabled && activeTracker != null)
+            if (activeTracker != null)
             {
                 if (activeTracker.IsTracking)
                 {
                     var size = ImGui.GetIO().DisplaySize;
-                    LastGazeScreenPos = CalculateGazeScreenPos(size, activeTracker.LastGazePos);
+                    if (configuration.UseHeadRotationAsGaze)
+                    {
+                        LastGazeScreenPos = ConvertHeadRotationToGazePos(size, activeTracker.LastHeadRotation, configuration.MaxPitchAngle, configuration.MaxYawAngle);
+                    }
+                    else
+                    {
+                        LastGazeScreenPos = CalculateGazeScreenPos(size, activeTracker.LastGazePos);
+                    }
 
-                    if (Service.Condition.Any() && player != null && !WatchingAnyCutscene())
+                    if (configuration.Enabled && Service.Condition.Any() && player != null && !WatchingAnyCutscene())
                     {
                         ProcessGaze(player, LastGazeScreenPos);
                     }
@@ -50,6 +57,31 @@ namespace MagitekStratagemPlugin
                 IsRaycasted = false;
                 UpdateHighlight();
             }
+        }
+
+        private Vector2 ConvertHeadRotationToGazePos(Vector2 screenSize, Vector3 headRotation, int maxPitchDeg, int maxYawDeg)
+        {
+            // headRotation: X = pitch, Y = yaw, Z = roll
+            // pitch: 0 = center, positive = up, negative = down
+            // yaw: negative = left, positive = right
+            var pitch = headRotation.X;
+            var yaw = headRotation.Y;
+
+            // Clamp to max angles
+            var clampedPitch = Math.Max(-maxPitchDeg, Math.Min(maxPitchDeg, pitch));
+            var clampedYaw = Math.Max(-maxYawDeg, Math.Min(maxYawDeg, yaw));
+
+            // Normalize to [-1,1]
+            var normY = clampedPitch / (float)maxPitchDeg; // -1..1 for vertical (pitch)
+            var normX = clampedYaw / (float)maxYawDeg; // -1..1 for horizontal (yaw)
+
+            // Map normalized values to screen coordinates
+            // X: -1 => left (0), 0 => center, 1 => right (screenSize.X)
+            // Y: -1 => bottom (screenSize.Y), 0 => center, 1 => top (0)
+            var x = (normX * (screenSize.X / 2f)) + (screenSize.X / 2f);
+            var y = (-normY * (screenSize.Y / 2f)) + (screenSize.Y / 2f);
+
+            return new Vector2(x, y);
         }
 
         public void Dispose()

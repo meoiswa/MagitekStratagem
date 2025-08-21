@@ -32,6 +32,11 @@ namespace MagitekStratagemPlugin
     public string SelectedTrackerFullName { get; set; } = string.Empty;
     public string SelectedTrackerName { get; set; } = string.Empty;
 
+  // Tracker-based gaze settings
+  public bool UseHeadRotationAsGaze { get; set; } = false;
+  public int MaxPitchAngle { get; set; } = 35;
+  public int MaxYawAngle { get; set; } = 35;
+
     // the below exist just to make saving less cumbersome
     [NonSerialized]
     private MagitekStratagemPlugin? plugin;

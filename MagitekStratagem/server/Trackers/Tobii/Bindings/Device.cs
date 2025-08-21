@@ -111,7 +111,7 @@ namespace MagitekStratagemServer.Trackers.Tobii.Bindings
             }
 
             LastHeadPosition = new Vector3(headPose.position_xyz.x, headPose.position_xyz.y, headPose.position_xyz.z);
-            LastHeadRotation = new Vector3(headPose.rotation_xyz.x, headPose.rotation_xyz.y, -headPose.rotation_xyz.z) * (180f / MathF.PI);
+            LastHeadRotation = new Vector3(headPose.rotation_xyz.x, -headPose.rotation_xyz.y, headPose.rotation_xyz.z) * (180f / MathF.PI);
             LastHeadTimestamp = headPose.timestamp;
         }
     }

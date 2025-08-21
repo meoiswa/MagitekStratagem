@@ -159,6 +159,7 @@ namespace MagitekStratagemPlugin
 
       DrawBehaviorSettingsSection();
       DrawAppareanceSettingsSection();
+      DrawTrackerSettingsSection();
       DrawGazeCircleSettingsSection();
       DrawRaycastSettingsSection();
 
@@ -212,6 +213,10 @@ namespace MagitekStratagemPlugin
           ImGui.Text($"LastHeadYaw: {plugin.SignalRService.ActiveTracker.LastHeadRotation.Y}");
           ImGui.Text($"LastHeadRoll: {plugin.SignalRService.ActiveTracker.LastHeadRotation.Z}");
           ImGui.Unindent();
+          ImGui.Text("GazeService:");
+          ImGui.Indent();
+          ImGui.Text($"LastGazeScreenPos: {plugin.GazeService.LastGazeScreenPos.X}, {plugin.GazeService.LastGazeScreenPos.Y}");
+          ImGui.Text($"LastGazeWorldPos: {plugin.GazeService.LastGazeWorldPos.X}, {plugin.GazeService.LastGazeWorldPos.Y}, {plugin.GazeService.LastGazeWorldPos.Z}");
         }
         else
         {
@@ -342,6 +347,42 @@ namespace MagitekStratagemPlugin
       }
     }
 
+    private void DrawTrackerSettingsSection()
+    {
+      if (ImGui.CollapsingHeader("Tracker Settings"))
+      {
+        ImGui.Indent();
+
+        ImGui.TextWrapped("Settings for using tracker head rotation as the gaze position.");
+
+        var useHead = plugin.Configuration.UseHeadRotationAsGaze;
+        if (ImGui.Checkbox("Use Head Rotation as Gaze", ref useHead))
+        {
+          plugin.Configuration.UseHeadRotationAsGaze = useHead;
+          plugin.Configuration.Save();
+        }
+
+        ImGui.NewLine();
+        ImGui.Text("Max Pitch Angle (degrees)");
+        var maxPitch = plugin.Configuration.MaxPitchAngle;
+        if (ImGui.SliderInt("##maxpitch", ref maxPitch, 1, 90))
+        {
+          plugin.Configuration.MaxPitchAngle = maxPitch;
+          plugin.Configuration.Save();
+        }
+
+        ImGui.Text("Max Yaw Angle (degrees)");
+        var maxYaw = plugin.Configuration.MaxYawAngle;
+        if (ImGui.SliderInt("##maxyaw", ref maxYaw, 1, 90))
+        {
+          plugin.Configuration.MaxYawAngle = maxYaw;
+          plugin.Configuration.Save();
+        }
+
+        ImGui.Unindent();
+      }
+    }
+
     private void DrawOverlayCheckbox()
     {
       var useOverlay = plugin.Configuration.OverlayEnabled;
@@ -396,11 +437,6 @@ namespace MagitekStratagemPlugin
 
     private void DrawBehaviorSettingsSection()
     {
-      var hooksAvailable = plugin.SelectTargetHooksService.SelectInitialTabTargetHooked
-        && plugin.SelectTargetHooksService.SelectTabTargetConeHooked
-        && plugin.SelectTargetHooksService.SelectTabTargetIgnoreDepthHooked
-        && plugin.SelectTargetHooksService.GetInputStatusHooked;
-
       if (ImGui.CollapsingHeader("Behavior Settings"))
       {
         ImGui.Indent();

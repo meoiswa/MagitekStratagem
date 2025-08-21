@@ -40,7 +40,7 @@ namespace MagitekStratagemPlugin
     public void DrawBubbles(Vector2 gazePos)
     {
       var size = ImGui.GetMainViewport().Size;
-      var gazeCoord = new Vector2(gazePos.X * (size.X / 2) + (size.X / 2), -gazePos.Y * (size.Y / 2) + (size.Y / 2)) + ImGui.GetMainViewport().Pos;
+      var gazeCoord = new Vector2(gazePos.X, gazePos.Y);
 
       var white = ImGui.GetColorU32(new Vector4(1, 1, 1, 1));
       var black = ImGui.GetColorU32(new Vector4(0, 0, 0, 1));
@@ -71,7 +71,7 @@ namespace MagitekStratagemPlugin
         return;
       }
 
-      DrawBubbles(plugin.SignalRService.ActiveTracker.LastGazePos);
+      DrawBubbles(plugin.GazeService.LastGazeScreenPos);
     }
   }
 }

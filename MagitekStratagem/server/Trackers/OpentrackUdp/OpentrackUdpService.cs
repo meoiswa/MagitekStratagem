@@ -51,7 +51,7 @@ namespace MagitekStratagemServer.Trackers.OpentrackUdp
                     return (false, false);
                 }
 
-                LastGazeTimestamp = _lastPoseTimestamp;
+                LastHeadTimestamp = _lastPoseTimestamp;
                 LastHeadPosition = new System.Numerics.Vector3((float)_lastPose.X, (float)_lastPose.Y, (float)_lastPose.Z);
                 LastHeadRotation = new System.Numerics.Vector3((float)_lastPose.Pitch, (float)_lastPose.Yaw, (float)_lastPose.Roll);
                 return (false, true);

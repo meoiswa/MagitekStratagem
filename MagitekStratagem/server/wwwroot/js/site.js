@@ -169,6 +169,7 @@ connection.on("TrackerGazeUpdate", (name, timestamp, x, y) => {
 connection.on(
   "TrackerHeadUpdate",
   (name, timestamp, x, y, z, pitch, yaw, roll) => {
+    console.info("TrackerHeadUpdate", { name, timestamp, x, y, z, pitch, yaw, roll });
     if (name != servicesSelect.value) {
       return;
     }

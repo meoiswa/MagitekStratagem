@@ -1,28 +1,26 @@
-using MagitekStratagemServer.Trackers.Eyeware.Bindings.Client;
+using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Eyeware.BeamEyeTracker;
+using MagitekStratagemServer.Trackers.Tobii.Bindings;
 
 namespace MagitekStratagemServer.Trackers.Eyeware.Bindings
 {
     public class TrackerClient : IDisposable
     {
-        public const string Library = "tracker_client.dll";
-        public const int DefaultBaseCommunicationPort = 12010;
-        public const int DefaultNetworkTimeoutsInMs = 2000;
+        public const string Library = "beam_eye_tracker_client";
 
-        private nint _impl;
+        private API? beamAPI;
 
-        public TrackerClient(
-            Action<NetworkError>? networkErrorHandler = null,
-            int networkConnectionTimeoutMs = DefaultNetworkTimeoutsInMs,
-            int trackingInfoNetworkTimeoutMs = DefaultNetworkTimeoutsInMs,
-            int baseCommunicationPort = DefaultBaseCommunicationPort,
-            string hostname = "127.0.0.1")
+        public TrackerClient(string friendlyName = "MagitekStratagem")
         {
-            _impl = create_tracker_instance(
-                hostname,
-                baseCommunicationPort,
-                networkConnectionTimeoutMs,
-                trackingInfoNetworkTimeoutMs,
-                nint.Zero);
+            var viewport = ImGui.GetMainViewport();
+            var p00 = new Point((int)viewport.Pos.X, (int)viewport.Pos.Y);
+            var p11 = new Point((int)(viewport.Pos.X + viewport.Size.X), (int)(viewport.Pos.Y + viewport.Size.Y));
+            var initialViewportGeometry = new ViewportGeometry(p00, p11);
+            beamAPI = new API(friendlyName, initialViewportGeometry);
+
+            var listener = new TrackingListener();
+            beamAPI.StartReceivingTrackingDataOnListener(listener);
         }
 
         public void Dispose()
@@ -33,53 +31,44 @@ namespace MagitekStratagemServer.Trackers.Eyeware.Bindings
 
         protected virtual void Dispose(bool disposing)
         {
-            if (_impl != nint.Zero)
+            if (beamAPI != null)
             {
-                release_tracker_instance(_impl);
-                _impl = nint.Zero;
+                beamAPI.Dispose();
+                beamAPI = null;
             }
+        }
+
+        public bool Connected()
+        {
+            if (beamAPI == null)
+            {
+                return false;
+            }
+
+            switch (beamAPI.GetTrackingDataReceptionStatus())
+            {
+                case TrackingDataReceptionStatus.ReceivingTrackingData:
+                    return true;
+                case TrackingDataReceptionStatus.AttemptingTrackingAutoStart:
+                case TrackingDataReceptionStatus.NotReceivingTrackingData:
+                default:
+                    return false;
+            }
+        }
+
+        public TrackingStateSet? GetTrackingStateSet()
+        {
+            if (beamAPI == null)
+            {
+                return null;
+            }
+
+            return beamAPI.GetLatestTrackingStateSet();
         }
 
         ~TrackerClient()
         {
             Dispose(false);
         }
-
-        public ScreenGazeInfo GetScreenGazeInfo()
-        {
-            return get_screen_gaze_info(_impl);
-        }
-
-        public HeadPoseInfo GetHeadPoseInfo()
-        {
-            return get_head_pose_info(_impl);
-        }
-
-        public bool Connected()
-        {
-            return connected(_impl);
-        }
-
-
-        [System.Runtime.InteropServices.DllImport(Library)]
-        private static extern nint create_tracker_instance(
-            string hostname,
-            int baseCommunicationPort,
-            int networkConnectionTimeoutMs,
-            int trackingInfoNetworkTimeoutMs,
-            nint networkErrorHandler);
-
-        [System.Runtime.InteropServices.DllImport(Library)]
-        private static extern void release_tracker_instance(nint instance);
-
-        [System.Runtime.InteropServices.DllImport(Library)]
-        private static extern ScreenGazeInfo get_screen_gaze_info(nint instance);
-
-        [System.Runtime.InteropServices.DllImport(Library)]
-        private static extern HeadPoseInfo get_head_pose_info(nint instance);
-
-        [System.Runtime.InteropServices.DllImport(Library)]
-        private static extern bool connected(nint instance);
-
     }
 }

@@ -20,7 +20,7 @@ internal class EyewareDllResolver
 
         if (runDir != null)
         {
-            var lib = Path.Join(runDir, "Trackers", "Eyeware", "lib", TrackerClient.Library);
+            var lib = Path.Join(runDir, "server", "Trackers", "Eyeware", "lib", TrackerClient.Library);
             logger.LogTrace("Loading Eyeware Tracker Client DLL from " + lib);
             try
             {
