@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using MagitekStratagemServer.Attributes;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Trackers;
 

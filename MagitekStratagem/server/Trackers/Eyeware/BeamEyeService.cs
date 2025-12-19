@@ -1,8 +1,8 @@
 using System.Numerics;
-using Dalamud.Bindings.ImGui;
 using Eyeware.BeamEyeTracker;
 using MagitekStratagemServer.Attributes;
 using MagitekStratagemServer.Trackers.Eyeware.Bindings;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Trackers.Eyeware
 {

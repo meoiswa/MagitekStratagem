@@ -3,6 +3,7 @@ using MagitekStratagemServer.Trackers.Eyeware;
 using MagitekStratagemServer.Trackers.Fake;
 using MagitekStratagemServer.Trackers.OpentrackUdp;
 using MagitekStratagemServer.Trackers.Tobii;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Services
 {

@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using MagitekStratagemServer.Attributes;
 using MagitekStratagemServer.Trackers.OpentrackUdp.Bindings;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Trackers.OpentrackUdp
 {

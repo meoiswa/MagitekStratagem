@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Trackers.Tobii.Bindings
 {

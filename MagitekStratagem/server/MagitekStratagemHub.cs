@@ -1,5 +1,6 @@
 using MagitekStratagemServer.Services;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Hubs
 {

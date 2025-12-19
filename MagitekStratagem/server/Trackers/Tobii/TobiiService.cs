@@ -1,6 +1,7 @@
 using MagitekStratagemPlugin;
 using MagitekStratagemServer.Attributes;
 using MagitekStratagemServer.Trackers.Tobii.Bindings;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Trackers.Tobii
 {

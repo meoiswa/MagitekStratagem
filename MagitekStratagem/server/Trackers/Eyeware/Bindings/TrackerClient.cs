@@ -1,7 +1,5 @@
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Eyeware.BeamEyeTracker;
-using MagitekStratagemServer.Trackers.Tobii.Bindings;
 
 namespace MagitekStratagemServer.Trackers.Eyeware.Bindings
 {

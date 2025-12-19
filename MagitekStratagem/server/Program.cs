@@ -5,7 +5,10 @@ using MagitekStratagemServer.Services;
 using MagitekStratagemServer.Trackers.Eyeware.Bindings;
 using MagitekStratagemServer.Trackers.Tobii;
 using MagitekStratagemServer.Trackers.Tobii.Bindings;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer
 {

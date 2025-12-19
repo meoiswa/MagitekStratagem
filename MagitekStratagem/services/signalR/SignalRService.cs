@@ -5,8 +5,8 @@ namespace MagitekStratagemPlugin
 {
   public sealed class SignalRService
   {
-    private Dictionary<string, TrackerService> trackers = new();
-    private HubConnection connection;
+    private readonly Dictionary<string, TrackerService> trackers = new();
+    private readonly HubConnection connection;
     private Process? serverProcess;
 
     public HubConnectionState State => connection.State;
@@ -59,7 +59,7 @@ namespace MagitekStratagemPlugin
       });
 
       RunServer();
-      Start();
+      _ = Start();
     }
 
     public void RunServer()
@@ -90,7 +90,7 @@ namespace MagitekStratagemPlugin
 
     public void KillServer()
     {
-      if (serverProcess != null && serverProcess.HasExited == false)
+      if (serverProcess != null && !serverProcess.HasExited)
       {
         try
         {
@@ -105,7 +105,7 @@ namespace MagitekStratagemPlugin
       serverProcess = null;
     }
 
-    public async void Start()
+    public async Task Start()
     {
       Service.PluginLog.Debug("Start");
 
@@ -125,7 +125,7 @@ namespace MagitekStratagemPlugin
           Service.PluginLog.Error(ex, "Failed to start SignalR connection");
           return;
         }
-        GetTrackerServices();
+        await GetTrackerServices();
       }
     }
 
@@ -135,7 +135,7 @@ namespace MagitekStratagemPlugin
       {
         if (ActiveTracker != null)
         {
-          StopTracking(ActiveTracker);
+          _ = StopTracking(ActiveTracker);
           ActiveTracker = null;
         }
 
@@ -145,9 +145,9 @@ namespace MagitekStratagemPlugin
         }
       }
 
-      if (ActiveTracker != null && ActiveTracker.IsTracking == false)
+      if (ActiveTracker != null && !ActiveTracker.IsTracking)
       {
-        StartTracking(ActiveTracker);
+        _ = StartTracking(ActiveTracker);
       }
     }
 
@@ -170,7 +170,7 @@ namespace MagitekStratagemPlugin
       }
     }
 
-    public async void StartTracking(TrackerService service)
+    public async Task StartTracking(TrackerService service)
     {
       Service.PluginLog.Debug($"StartTracking: {service.FullName}");
       if (connection.State == HubConnectionState.Connected && !service.IsTracking && !service.PendingRequest)
@@ -180,7 +180,7 @@ namespace MagitekStratagemPlugin
       }
     }
 
-    public async void StopTracking(TrackerService service)
+    public async Task StopTracking(TrackerService service)
     {
       Service.PluginLog.Debug($"StopTracking: {service.FullName}");
       if (connection.State == HubConnectionState.Connected && service.IsTracking && !service.PendingRequest)
@@ -202,7 +202,7 @@ namespace MagitekStratagemPlugin
       }
     }
 
-    private async void GetTrackerServices()
+    private async Task GetTrackerServices()
     {
       if (connection.State == HubConnectionState.Connected)
       {

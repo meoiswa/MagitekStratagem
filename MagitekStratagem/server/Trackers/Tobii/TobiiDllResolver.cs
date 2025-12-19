@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using MagitekStratagemServer.Trackers.Tobii.Bindings;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Trackers.Tobii;
 

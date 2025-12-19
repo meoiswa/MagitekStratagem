@@ -1,16 +1,15 @@
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 
 namespace MagitekStratagemServer.Trackers.Eyeware.Bindings;
 
 internal class EyewareDllResolver
 {
-    private ILoggerFactory LoggerFactory;
     private ILogger logger;
 
     public EyewareDllResolver(ILoggerFactory loggerFactory)
     {
-        this.LoggerFactory = loggerFactory;
-        this.logger = loggerFactory.CreateLogger<EyewareDllResolver>();
+        logger = loggerFactory.CreateLogger<EyewareDllResolver>();
     }
 
     public IntPtr ResolveEyewareDll()
