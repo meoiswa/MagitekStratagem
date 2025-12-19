@@ -133,7 +133,7 @@ namespace MagitekStratagemPlugin
     public void OnUpdate(IFramework framework)
     {
       SignalRService.Update();
-      GazeService.Update(Service.ClientState.LocalPlayer, SignalRService.ActiveTracker);
+      GazeService.Update(Service.ObjectTable.LocalPlayer, SignalRService.ActiveTracker);
       if (SignalRService.ActiveTracker != null)
       {
         SharedDataService.Update(SignalRService.ActiveTracker);

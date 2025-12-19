@@ -130,7 +130,7 @@ namespace MagitekStratagemPlugin
           + "\nhttps://github.com/meoiswa/MagitekStratagemServer/releases/tag/v0.0.1");
         if (ImGui.Button("Reconnect"))
         {
-          plugin.SignalRService.Start();
+          _ = plugin.SignalRService.Start();
         }
         return;
       }
