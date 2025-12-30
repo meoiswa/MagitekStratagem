@@ -9,6 +9,8 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <OutputType>Exe</OutputType>
+    <RuntimeFrameworkVersion>10.0.0</RuntimeFrameworkVersion>
+    <TargetLatestRuntimePatch>false</TargetLatestRuntimePatch>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -23,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,6 +44,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
   </ItemGroup>
 </Project>
